@@ -15,5 +15,7 @@ Open `index.html` in a modern browser. No build step is needed for the web versi
 ## Data and safety
 Records are stored in that browser's local storage on that device; they do not automatically sync between devices. Export CSV backups regularly. This is a personal record book, not an official licence or harvest report. Check current local hunting regulations.
 
-## Android packaging
-This is currently a standalone web app, not a compiled APK. To publish as an Android app, package this folder with a WebView-based Android project or a trusted web-app wrapper and assign its own unique Android application ID.
+## Android app
+A separate Android app module is now included at `small-game-record/`, with its own application ID (`com.smallgamerecord.app`), launcher identity, and offline interface. It does not require GPS or map permissions.
+
+Build it from the repository root with `gradle :small-game-record:assembleDebug`. The APK is written to `small-game-record/build/outputs/apk/debug/small-game-record-debug.apk`. GitHub Actions publishes a `small-game-record-debug-apk` artifact after the build passes.
