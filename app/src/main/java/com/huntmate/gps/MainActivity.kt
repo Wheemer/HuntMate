@@ -12,8 +12,10 @@ import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.location.Location
+import android.location.LocationManager
 import android.os.Build
 import android.os.Bundle
+import android.os.CancellationSignal
 import android.content.Intent
 import android.widget.ArrayAdapter
 import android.widget.Button
@@ -95,19 +97,13 @@ class MainActivity : AppCompatActivity() {
         findViewById<Button>(R.id.startButton).setOnClickListener { ensurePermissionAndStart() }
         findViewById<Button>(R.id.pauseButton).setOnClickListener { controller.pause() }
         findViewById<Button>(R.id.stopButton).setOnClickListener { controller.stop() }
-        findViewById<Button>(R.id.recenterButton).setOnClickListener {
-            followLocation = true
-            controller.snapshot.value.point?.let { map.animateCamera(CameraUpdateFactory.newLatLngZoom(LatLng(it.latitude, it.longitude), 15.5)) }
-        }
+        updateMapTypeButton()
+        findViewById<Button>(R.id.recenterButton).setOnClickListener { locateMe() }
         findViewById<Button>(R.id.mapTypeButton).setOnClickListener {
             mapMode = (mapMode + 1) % 4
-            findViewById<Button>(R.id.mapTypeButton).text = when (mapMode) {
-                0 -> "Satellite"
-                1 -> "Topo"
-                2 -> "Hybrid"
-                else -> "Map"
-            }
+            updateMapTypeButton()
             applyMapStyle()
+            Toast.makeText(this, "Map layer: ${currentMapModeName()}", Toast.LENGTH_SHORT).show()
         }
         findViewById<Button>(R.id.compassButton).setOnClickListener {
             val bearing = compassBearing
@@ -141,6 +137,17 @@ class MainActivity : AppCompatActivity() {
 
     private fun populateTools(mode: ActivityMode) {
         toolSpinner.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, mode.tools)
+    }
+
+    private fun currentMapModeName(): String = when (mapMode) {
+        1 -> "Satellite"
+        2 -> "Topographic"
+        3 -> "Hybrid"
+        else -> "Map"
+    }
+
+    private fun updateMapTypeButton() {
+        findViewById<Button>(R.id.mapTypeButton).text = currentMapModeName()
     }
 
     private fun configureMapNetworking() {
@@ -299,6 +306,71 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun formatDistance(meters: Double): String = if (meters < 1000) "${meters.toInt()} m" else "%.2f km".format(meters / 1000.0)
+
+    /**
+     * Locates the device without requiring a tracking session to be active.
+     * On Android 11+ request a fresh provider fix and fall back to the last
+     * known location when the provider cannot return one.
+     */
+    private fun locateMe() {
+        val fine = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        val coarse = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        if (!fine && !coarse) {
+            permissionLauncher.launch(HuntMateGpsController.requiredPermissions)
+            Toast.makeText(this, "Allow location access, then tap the location button again.", Toast.LENGTH_LONG).show()
+            return
+        }
+        if (!::map.isInitialized || !mapReady) {
+            Toast.makeText(this, "Map is still loading. Try again in a moment.", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val locationManager = getSystemService(LOCATION_SERVICE) as LocationManager
+        val provider = when {
+            fine && locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER) -> LocationManager.GPS_PROVIDER
+            locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER) -> LocationManager.NETWORK_PROVIDER
+            else -> null
+        }
+        if (provider == null) {
+            Toast.makeText(this, "Turn on Location in your phone settings, then try again.", Toast.LENGTH_LONG).show()
+            return
+        }
+
+        Toast.makeText(this, "Finding your location…", Toast.LENGTH_SHORT).show()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            try {
+                locationManager.getCurrentLocation(provider, CancellationSignal(), mainExecutor) { location ->
+                    if (location != null) {
+                        showMyLocation(location)
+                    } else {
+                        val last = runCatching { locationManager.getLastKnownLocation(provider) }.getOrNull()
+                        if (last != null) showMyLocation(last)
+                        else Toast.makeText(this, "Can't get a GPS fix yet. Move outdoors and try again.", Toast.LENGTH_LONG).show()
+                    }
+                }
+            } catch (_: SecurityException) {
+                Toast.makeText(this, "Location permission is required to find your position.", Toast.LENGTH_LONG).show()
+            }
+        } else {
+            val last = runCatching { locationManager.getLastKnownLocation(provider) }.getOrNull()
+            if (last != null) showMyLocation(last)
+            else Toast.makeText(this, "Start tracking to get a GPS fix on this Android version.", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    private fun showMyLocation(location: Location) {
+        if (!::map.isInitialized || !mapReady) return
+        followLocation = true
+        val here = Point.fromLngLat(location.longitude, location.latitude)
+        map.style?.getSourceAs<GeoJsonSource>("huntmate-location-source")?.setGeoJson(Feature.fromGeometry(here))
+        val accuracy = if (location.hasAccuracy()) location.accuracy else 50f
+        map.style?.getSourceAs<GeoJsonSource>("huntmate-accuracy-source")?.setGeoJson(
+            Feature.fromGeometry(accuracyPolygon(location.latitude, location.longitude, accuracy))
+        )
+        map.animateCamera(CameraUpdateFactory.newLatLngZoom(LatLng(location.latitude, location.longitude), 15.5))
+        findViewById<TextView>(R.id.locationText).text =
+            "%.6f, %.6f  •  ±%.1f m".format(location.latitude, location.longitude, accuracy)
+    }
 
     private fun ensurePermissionAndStart() {
         val fine = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
