@@ -67,7 +67,7 @@ class MainActivity : AppCompatActivity() {
         mapView.getMapAsync { m ->
             map = m
             map.addOnCameraMoveStartedListener { reason ->
-                if (reason == MapLibreMap.REASON_API_GESTURE) followLocation = false
+                if (reason == MapLibreMap.OnCameraMoveStartedListener.REASON_API_GESTURE) followLocation = false
             }
             map.setStyle(Style.Builder().fromUri("asset://huntmate_osm_style.json")) { setupLayers() }
         }
@@ -141,7 +141,7 @@ class MainActivity : AppCompatActivity() {
         val pointSource = style.getSourceAs<GeoJsonSource>("huntmate-location-source")
         val accuracySource = style.getSourceAs<GeoJsonSource>("huntmate-accuracy-source")
         val coordinates = snapshot.points.map { Point.fromLngLat(it.longitude, it.latitude) }
-        lineSource?.setGeoJson(if (coordinates.size >= 2) Feature.fromGeometry(LineString.fromLngLats(coordinates)) else FeatureCollection.fromFeatures(arrayOf()))
+        lineSource?.setGeoJson(if (coordinates.size >= 2) Feature.fromGeometry(LineString.fromLngLats(coordinates)) else null)
         snapshot.point?.let {
             pointSource?.setGeoJson(Feature.fromGeometry(Point.fromLngLat(it.longitude, it.latitude)))
             accuracySource?.setGeoJson(Feature.fromGeometry(accuracyPolygon(it.latitude, it.longitude, it.accuracyMeters)))
