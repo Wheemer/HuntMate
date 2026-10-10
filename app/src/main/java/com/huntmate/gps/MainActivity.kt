@@ -135,6 +135,29 @@ class MainActivity : AppCompatActivity() {
         ))
     }
 
+    private fun createDirectionArrowBitmap(): Bitmap {
+        val size = 64
+        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.rgb(198, 40, 40)
+            style = Paint.Style.FILL
+        }
+        val arrow = Path().apply {
+            moveTo(size / 2f, 3f)
+            lineTo(size * 0.84f, size * 0.88f)
+            lineTo(size / 2f, size * 0.69f)
+            lineTo(size * 0.16f, size * 0.88f)
+            close()
+        }
+        canvas.drawPath(arrow, paint)
+        paint.color = Color.WHITE
+        paint.style = Paint.Style.STROKE
+        paint.strokeWidth = 3f
+        canvas.drawPath(arrow, paint)
+        return bitmap
+    }
+
     private fun drawTrack(snapshot: TrackingSnapshot) {
         val style = map.style ?: return
         val lineSource = style.getSourceAs<GeoJsonSource>("huntmate-track-source")
