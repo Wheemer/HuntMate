@@ -62,8 +62,18 @@ class MainActivity : AppCompatActivity() {
     private var lastDirectionLocation: Location? = null
 
     private val notificationPermissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
+    private var locateAfterPermission = false
+
     private val permissionLauncher = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
-        if (result[Manifest.permission.ACCESS_FINE_LOCATION] == true || result[Manifest.permission.ACCESS_COARSE_LOCATION] == true) controller.start()
+        val granted = result[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+            result[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+        if (locateAfterPermission) {
+            locateAfterPermission = false
+            if (granted) locateMe()
+            else Toast.makeText(this, "Location permission is needed to find your position.", Toast.LENGTH_LONG).show()
+        } else if (granted) {
+            controller.start()
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -312,8 +322,9 @@ class MainActivity : AppCompatActivity() {
         val fine = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
         val coarse = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
         if (!fine && !coarse) {
+            // Keep the one-tap locate action separate from starting a tracking session.
+            locateAfterPermission = true
             permissionLauncher.launch(HuntMateGpsController.requiredPermissions)
-            Toast.makeText(this, "Allow location access, then tap the location button again.", Toast.LENGTH_LONG).show()
             return
         }
         if (!::map.isInitialized || !mapReady) {
