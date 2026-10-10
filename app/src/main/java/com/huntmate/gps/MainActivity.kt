@@ -232,7 +232,12 @@ class MainActivity : AppCompatActivity() {
         val accuracySource = style.getSourceAs<GeoJsonSource>("huntmate-accuracy-source")
         val directionSource = style.getSourceAs<GeoJsonSource>("huntmate-direction-source")
         val coordinates = snapshot.points.map { Point.fromLngLat(it.longitude, it.latitude) }
-        lineSource?.setGeoJson(if (coordinates.size >= 2) Feature.fromGeometry(LineString.fromLngLats(coordinates)) else null)
+        if (coordinates.size >= 2) {
+            lineSource?.setGeoJson(Feature.fromGeometry(LineString.fromLngLats(coordinates)))
+        } else {
+            // Never pass a null Feature to MapLibre's native GeoJSON source.
+            lineSource?.setGeoJson(FeatureCollection.fromFeatures(arrayOf()))
+        }
         snapshot.point?.let { point ->
             val here = Point.fromLngLat(point.longitude, point.latitude)
             pointSource?.setGeoJson(Feature.fromGeometry(here))
