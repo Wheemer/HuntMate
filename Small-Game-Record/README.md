@@ -15,8 +15,10 @@ Open `index.html` in a modern browser. No build step is needed for the web versi
 ## Data and safety
 Records are stored in that browser's local storage on that device; they do not automatically sync between devices. Export CSV backups regularly. This is a personal record book, not an official licence or harvest report. Check current local hunting regulations.
 
-## Android packaging
-This is currently a standalone web app, not a compiled APK. To publish as an Android app, package this folder with a WebView-based Android project or a trusted web-app wrapper and assign its own unique Android application ID.
+## Android app
+A separate Android app project lives in `android/`, with application ID `com.smallgamerecord.app`, its own launcher identity, and an offline interface. It does not require GPS or map permissions.
+
+The debug APK is built by GitHub Actions from `.github/workflows/small-game-record-apk.yml` and published as the `Small-Game-Record-debug-APK` artifact after a successful run.
 
 ## Android APK test build
 
@@ -29,4 +31,4 @@ To download the test APK:
 4. Under **Artifacts**, download **Small-Game-Record-debug-APK** and extract the ZIP.
 5. Open `app-debug.apk` on your Android phone and allow installation from that source if Android asks.
 
-The workflow may take a few minutes to finish after a commit. This is an unsigned debug/test build, not a Play Store release. The records are stored locally on the device by the app's browser storage; uninstalling or clearing app data may erase them. Export/back up your records before removing the app.
+The workflow may take a few minutes to finish after a commit. This is an unsigned debug/test build, not a Play Store release. Records are stored locally in the app's browser storage; uninstalling or clearing app data may erase them. CSV export opens Android's system file picker so you can save a backup. Export/back up your records before removing the app.
