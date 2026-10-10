@@ -99,15 +99,12 @@ class MainActivity : AppCompatActivity() {
             followLocation = true
             controller.snapshot.value.point?.let { map.animateCamera(CameraUpdateFactory.newLatLngZoom(LatLng(it.latitude, it.longitude), 15.5)) }
         }
+        updateMapTypeButton()
         findViewById<Button>(R.id.mapTypeButton).setOnClickListener {
             mapMode = (mapMode + 1) % 4
-            findViewById<Button>(R.id.mapTypeButton).text = when (mapMode) {
-                0 -> "Satellite"
-                1 -> "Topo"
-                2 -> "Hybrid"
-                else -> "Map"
-            }
+            updateMapTypeButton()
             applyMapStyle()
+            Toast.makeText(this, "Map layer: ${currentMapModeName()}", Toast.LENGTH_SHORT).show()
         }
         findViewById<Button>(R.id.compassButton).setOnClickListener {
             val bearing = compassBearing
@@ -151,6 +148,17 @@ class MainActivity : AppCompatActivity() {
             chain.proceed(request)
         }.build()
         org.maplibre.android.module.http.HttpRequestUtil.setOkHttpClient(client)
+    }
+
+    private fun currentMapModeName(): String = when (mapMode) {
+        1 -> "Satellite"
+        2 -> "Topographic"
+        3 -> "Hybrid"
+        else -> "Map"
+    }
+
+    private fun updateMapTypeButton() {
+        findViewById<Button>(R.id.mapTypeButton).text = currentMapModeName()
     }
 
     private fun applyMapStyle() {
