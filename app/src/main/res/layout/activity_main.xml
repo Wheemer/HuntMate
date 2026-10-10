@@ -7,13 +7,13 @@
     <Button android:id="@+id/appsButton" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginStart="12dp" android:layout_marginEnd="12dp" android:text="HuntMate Apps · Get Outdoor" />
     <FrameLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1">
         <org.maplibre.android.maps.MapView android:id="@+id/mapView" android:layout_width="match_parent" android:layout_height="match_parent" />
+        <Button android:id="@+id/recenterButton" android:layout_width="56dp" android:layout_height="56dp" android:layout_gravity="bottom|end" android:layout_marginEnd="12dp" android:layout_marginBottom="44dp" android:text="◎" android:textSize="26sp" android:contentDescription="Find my current GPS location" />
         <TextView android:id="@+id/mapAttribution" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="bottom|end" android:layout_margin="8dp" android:background="#CCFFFFFF" android:padding="4dp" android:text="© OpenStreetMap contributors · ODbL" android:textSize="11sp" />
     </FrameLayout>
     <TextView android:id="@+id/statusText" android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingStart="16dp" android:paddingEnd="16dp" android:paddingTop="8dp" android:text="GPS ready" android:textStyle="bold" />
     <TextView android:id="@+id/locationText" android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingStart="16dp" android:paddingEnd="16dp" android:text="Waiting for GPS…" />
     <TextView android:id="@+id/statsText" android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingStart="16dp" android:paddingEnd="16dp" android:paddingBottom="8dp" android:text="Distance: 0 m" />
     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:padding="8dp" android:orientation="horizontal">
-        <Button android:id="@+id/recenterButton" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="0.7" android:text="◎" android:contentDescription="Recenter on my location" />
         <Button android:id="@+id/mapTypeButton" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Satellite" android:contentDescription="Toggle satellite map view" />
         <Button android:id="@+id/compassButton" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="0.7" android:text="N" android:contentDescription="Orient map to compass heading" />
         <Button android:id="@+id/startButton" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Start" />
