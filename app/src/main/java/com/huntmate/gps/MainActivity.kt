@@ -105,7 +105,7 @@ class MainActivity : AppCompatActivity() {
         }
         findViewById<Button>(R.id.compassButton).setOnClickListener {
             val bearing = compassBearing
-            if (bearing != null) map.animateCamera(CameraUpdateFactory.bearingTo(bearing))
+            if (bearing != null) map.animateCamera(CameraUpdateFactory.bearingTo(bearing.toDouble()))
             else Toast.makeText(this, "Compass is not available on this device.", Toast.LENGTH_SHORT).show()
         }
 
