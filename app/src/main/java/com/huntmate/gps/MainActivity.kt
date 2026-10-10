@@ -52,7 +52,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var toolSpinner: Spinner
     private var mapReady = false
     private var followLocation = true
-    private var satelliteMode = false
+    private var mapMode = 0 // 0 = OpenStreetMap, 1 = satellite, 2 = Natural Resources Canada topographic
     private lateinit var sensorManager: SensorManager
     private var rotationSensor: Sensor? = null
     private var compassBearing: Float? = null
@@ -99,8 +99,12 @@ class MainActivity : AppCompatActivity() {
             controller.snapshot.value.point?.let { map.animateCamera(CameraUpdateFactory.newLatLngZoom(LatLng(it.latitude, it.longitude), 15.5)) }
         }
         findViewById<Button>(R.id.mapTypeButton).setOnClickListener {
-            satelliteMode = !satelliteMode
-            findViewById<Button>(R.id.mapTypeButton).text = if (satelliteMode) "Map" else "Satellite"
+            mapMode = (mapMode + 1) % 3
+            findViewById<Button>(R.id.mapTypeButton).text = when (mapMode) {
+                0 -> "Satellite"
+                1 -> "Topo"
+                else -> "Map"
+            }
             applyMapStyle()
         }
         findViewById<Button>(R.id.compassButton).setOnClickListener {
@@ -148,11 +152,18 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun applyMapStyle() {
-        val styleAsset = if (satelliteMode) "asset://huntmate_satellite_style.json" else "asset://huntmate_osm_style.json"
+        val styleAsset = when (mapMode) {
+            1 -> "asset://huntmate_satellite_style.json"
+            2 -> "asset://huntmate_topographic_style.json"
+            else -> "asset://huntmate_osm_style.json"
+        }
         map.setStyle(Style.Builder().fromUri(styleAsset)) {
             setupLayers()
-            findViewById<TextView>(R.id.mapAttribution).text =
-                if (satelliteMode) "Imagery © Esri and its imagery providers" else "© OpenStreetMap contributors · ODbL"
+            findViewById<TextView>(R.id.mapAttribution).text = when (mapMode) {
+                1 -> "Imagery © Esri and its imagery providers"
+                2 -> "Topographic map © Natural Resources Canada"
+                else -> "© OpenStreetMap contributors · ODbL"
+            }
         }
     }
 
