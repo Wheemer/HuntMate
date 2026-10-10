@@ -52,7 +52,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var toolSpinner: Spinner
     private var mapReady = false
     private var followLocation = true
-    private var mapMode = 0 // 0 = OpenStreetMap, 1 = satellite, 2 = Natural Resources Canada topographic
+    private var mapMode = 0 // 0 = OpenStreetMap, 1 = satellite, 2 = topographic, 3 = hybrid satellite
     private lateinit var sensorManager: SensorManager
     private var rotationSensor: Sensor? = null
     private var compassBearing: Float? = null
@@ -99,10 +99,11 @@ class MainActivity : AppCompatActivity() {
             controller.snapshot.value.point?.let { map.animateCamera(CameraUpdateFactory.newLatLngZoom(LatLng(it.latitude, it.longitude), 15.5)) }
         }
         findViewById<Button>(R.id.mapTypeButton).setOnClickListener {
-            mapMode = (mapMode + 1) % 3
+            mapMode = (mapMode + 1) % 4
             findViewById<Button>(R.id.mapTypeButton).text = when (mapMode) {
                 0 -> "Satellite"
                 1 -> "Topo"
+                2 -> "Hybrid"
                 else -> "Map"
             }
             applyMapStyle()
@@ -155,6 +156,7 @@ class MainActivity : AppCompatActivity() {
         val styleAsset = when (mapMode) {
             1 -> "asset://huntmate_satellite_style.json"
             2 -> "asset://huntmate_topographic_style.json"
+            3 -> "asset://huntmate_hybrid_style.json"
             else -> "asset://huntmate_osm_style.json"
         }
         map.setStyle(Style.Builder().fromUri(styleAsset)) {
@@ -162,6 +164,7 @@ class MainActivity : AppCompatActivity() {
             findViewById<TextView>(R.id.mapAttribution).text = when (mapMode) {
                 1 -> "Imagery © Esri and its imagery providers"
                 2 -> "Topographic map © Natural Resources Canada"
+                3 -> "Imagery © Esri · Labels and boundaries © Esri"
                 else -> "© OpenStreetMap contributors · ODbL"
             }
         }
