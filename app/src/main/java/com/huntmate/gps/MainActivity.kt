@@ -66,8 +66,9 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        configureMapNetworking()
+        // Initialize MapLibre before configuring its HTTP client.
         MapLibre.getInstance(this)
+        configureMapNetworking()
         setContentView(R.layout.activity_main)
         mapView = findViewById(R.id.mapView)
         controller = HuntMateGpsController(this)
