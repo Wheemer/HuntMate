@@ -20,8 +20,8 @@ class TrackingEngineTest {
     @Test fun activityModes_are_separate() {
         val store = MemoryStore()
         val engine = TrackingEngine(store)
-        engine.selectMode(ActivityMode.HIKING)
-        assertEquals(ActivityMode.HIKING, engine.currentMode())
+        engine.selectMode(ActivityMode.HUNTING)
+        assertEquals(ActivityMode.HUNTING, engine.currentMode())
         assertEquals(0, engine.snapshot.value.points.size)
         engine.selectMode(ActivityMode.FISHING)
         assertEquals(ActivityMode.FISHING, engine.currentMode())
@@ -47,12 +47,12 @@ class TrackingEngineTest {
     @Test fun session_state_remembers_activity_without_sharing_tracks() {
         val store = MemoryStore()
         val engine = TrackingEngine(store)
-        engine.selectMode(ActivityMode.HIKING)
+        engine.selectMode(ActivityMode.HUNTING)
         engine.start()
         engine.pause()
 
         val restored = TrackingEngine(store)
-        assertEquals(ActivityMode.HIKING, restored.currentMode())
+        assertEquals(ActivityMode.HUNTING, restored.currentMode())
         assertEquals(TrackingState.PAUSED, restored.snapshot.value.state)
     }
 }
