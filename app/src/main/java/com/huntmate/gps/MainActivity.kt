@@ -2,6 +2,16 @@ package com.huntmate.gps
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.Path
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
+import android.location.Location
 import android.os.Build
 import android.os.Bundle
 import android.content.Intent
@@ -25,6 +35,7 @@ import org.maplibre.android.maps.MapView
 import org.maplibre.android.maps.Style
 import org.maplibre.android.style.layers.CircleLayer
 import org.maplibre.android.style.layers.LineLayer
+import org.maplibre.android.style.layers.SymbolLayer
 import org.maplibre.android.style.layers.PropertyFactory
 import org.maplibre.android.style.sources.GeoJsonSource
 import org.maplibre.geojson.Feature
@@ -41,6 +52,11 @@ class MainActivity : AppCompatActivity() {
     private lateinit var toolSpinner: Spinner
     private var mapReady = false
     private var followLocation = true
+    private lateinit var sensorManager: SensorManager
+    private var rotationSensor: Sensor? = null
+    private var compassBearing: Float? = null
+    private var lastTravelBearing: Float? = null
+    private var lastDirectionLocation: Location? = null
 
     private val notificationPermissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
     private val permissionLauncher = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
@@ -54,6 +70,8 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
         mapView = findViewById(R.id.mapView)
         controller = HuntMateGpsController(this)
+        sensorManager = getSystemService(SENSOR_SERVICE) as SensorManager
+        rotationSensor = sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)
         activitySpinner = findViewById(R.id.activitySpinner)
         toolSpinner = findViewById(R.id.toolSpinner)
         setupActivitySelectors()
@@ -75,7 +93,15 @@ class MainActivity : AppCompatActivity() {
         findViewById<Button>(R.id.startButton).setOnClickListener { ensurePermissionAndStart() }
         findViewById<Button>(R.id.pauseButton).setOnClickListener { controller.pause() }
         findViewById<Button>(R.id.stopButton).setOnClickListener { controller.stop() }
-        findViewById<Button>(R.id.recenterButton).setOnClickListener { followLocation = true; controller.snapshot.value.point?.let { map.animateCamera(CameraUpdateFactory.newLatLngZoom(LatLng(it.latitude, it.longitude), 15.5)) } }
+        findViewById<Button>(R.id.recenterButton).setOnClickListener {
+            followLocation = true
+            controller.snapshot.value.point?.let { map.animateCamera(CameraUpdateFactory.newLatLngZoom(LatLng(it.latitude, it.longitude), 15.5)) }
+        }
+        findViewById<Button>(R.id.compassButton).setOnClickListener {
+            val bearing = compassBearing
+            if (bearing != null) map.animateCamera(CameraUpdateFactory.bearingTo(bearing))
+            else Toast.makeText(this, "Compass is not available on this device.", Toast.LENGTH_SHORT).show()
+        }
 
         lifecycleScope.launch {
             controller.snapshot.collect { snapshot ->
@@ -121,6 +147,8 @@ class MainActivity : AppCompatActivity() {
         style.addSource(GeoJsonSource("huntmate-track-source", FeatureCollection.fromFeatures(arrayOf())))
         style.addSource(GeoJsonSource("huntmate-location-source", FeatureCollection.fromFeatures(arrayOf())))
         style.addSource(GeoJsonSource("huntmate-accuracy-source", FeatureCollection.fromFeatures(arrayOf())))
+        style.addSource(GeoJsonSource("huntmate-direction-source", FeatureCollection.fromFeatures(arrayOf())))
+        style.addImage("direction-arrow", createDirectionArrowBitmap())
         style.addLayer(LineLayer("huntmate-track-line", "huntmate-track-source").withProperties(
             PropertyFactory.lineColor("#C62828"), PropertyFactory.lineWidth(4f), PropertyFactory.lineOpacity(0.9f)
         ))
@@ -128,6 +156,14 @@ class MainActivity : AppCompatActivity() {
             PropertyFactory.circleColor("#1565C0"), PropertyFactory.circleOpacity(0.14f),
             PropertyFactory.circleStrokeColor("#1565C0"), PropertyFactory.circleStrokeOpacity(0.45f),
             PropertyFactory.circleStrokeWidth(1.5f)
+        ))
+        style.addLayer(SymbolLayer("huntmate-direction-arrow", "huntmate-direction-source").withProperties(
+            PropertyFactory.iconImage("direction-arrow"),
+            PropertyFactory.iconRotate(org.maplibre.android.style.expressions.Expression.get("bearing")),
+            PropertyFactory.iconRotationAlignment("map"),
+            PropertyFactory.iconAllowOverlap(true),
+            PropertyFactory.iconIgnorePlacement(true),
+            PropertyFactory.iconSize(0.85f)
         ))
         style.addLayer(CircleLayer("huntmate-location-dot", "huntmate-location-source").withProperties(
             PropertyFactory.circleColor("#1565C0"), PropertyFactory.circleRadius(7f),
@@ -140,7 +176,7 @@ class MainActivity : AppCompatActivity() {
         val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
         val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.rgb(198, 40, 40)
+            color = Color.rgb(46, 125, 50)
             style = Paint.Style.FILL
         }
         val arrow = Path().apply {
@@ -163,12 +199,34 @@ class MainActivity : AppCompatActivity() {
         val lineSource = style.getSourceAs<GeoJsonSource>("huntmate-track-source")
         val pointSource = style.getSourceAs<GeoJsonSource>("huntmate-location-source")
         val accuracySource = style.getSourceAs<GeoJsonSource>("huntmate-accuracy-source")
+        val directionSource = style.getSourceAs<GeoJsonSource>("huntmate-direction-source")
         val coordinates = snapshot.points.map { Point.fromLngLat(it.longitude, it.latitude) }
         lineSource?.setGeoJson(if (coordinates.size >= 2) Feature.fromGeometry(LineString.fromLngLats(coordinates)) else null)
-        snapshot.point?.let {
-            pointSource?.setGeoJson(Feature.fromGeometry(Point.fromLngLat(it.longitude, it.latitude)))
-            accuracySource?.setGeoJson(Feature.fromGeometry(accuracyPolygon(it.latitude, it.longitude, it.accuracyMeters)))
-            if (followLocation) map.animateCamera(CameraUpdateFactory.newLatLngZoom(LatLng(it.latitude, it.longitude), 15.5))
+        snapshot.point?.let { point ->
+            val here = Point.fromLngLat(point.longitude, point.latitude)
+            pointSource?.setGeoJson(Feature.fromGeometry(here))
+            accuracySource?.setGeoJson(Feature.fromGeometry(accuracyPolygon(point.latitude, point.longitude, point.accuracyMeters)))
+            val location = Location("huntmate").apply {
+                latitude = point.latitude
+                longitude = point.longitude
+            }
+            val previous = lastDirectionLocation
+            if (previous != null && previous.distanceTo(location) >= 3f) {
+                val bearing = previous.bearingTo(location)
+                if (bearing.isFinite()) lastTravelBearing = (bearing + 360f) % 360f
+                lastDirectionLocation = location
+            } else if (previous == null) {
+                lastDirectionLocation = location
+            }
+            val direction = lastTravelBearing ?: compassBearing
+            if (direction != null) {
+                directionSource?.setGeoJson(Feature.fromGeometry(here).apply {
+                    addNumberProperty("bearing", direction.toDouble())
+                })
+            } else {
+                directionSource?.setGeoJson(FeatureCollection.fromFeatures(arrayOf()))
+            }
+            if (followLocation) map.animateCamera(CameraUpdateFactory.newLatLngZoom(LatLng(point.latitude, point.longitude), 15.5))
         }
     }
 
@@ -212,9 +270,30 @@ class MainActivity : AppCompatActivity() {
         if (fine || coarse) controller.start() else permissionLauncher.launch(HuntMateGpsController.requiredPermissions)
     }
 
+    private val compassListener = object : SensorEventListener {
+        override fun onSensorChanged(event: SensorEvent) {
+            if (event.sensor.type != Sensor.TYPE_ROTATION_VECTOR) return
+            val rotation = FloatArray(9)
+            val orientation = FloatArray(3)
+            SensorManager.getRotationMatrixFromVector(rotation, event.values)
+            SensorManager.getOrientation(rotation, orientation)
+            compassBearing = (Math.toDegrees(orientation[0].toDouble()).toFloat() + 360f) % 360f
+            if (mapReady) drawTrack(controller.snapshot.value)
+        }
+        override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) = Unit
+    }
+
     override fun onStart() { super.onStart(); mapView.onStart() }
-    override fun onResume() { super.onResume(); mapView.onResume() }
-    override fun onPause() { mapView.onPause(); super.onPause() }
+    override fun onResume() {
+        super.onResume()
+        mapView.onResume()
+        rotationSensor?.let { sensorManager.registerListener(compassListener, it, SensorManager.SENSOR_DELAY_UI) }
+    }
+    override fun onPause() {
+        sensorManager.unregisterListener(compassListener)
+        mapView.onPause()
+        super.onPause()
+    }
     override fun onStop() { mapView.onStop(); super.onStop() }
     override fun onDestroy() { mapView.onDestroy(); super.onDestroy() }
     override fun onLowMemory() { super.onLowMemory(); mapView.onLowMemory() }
