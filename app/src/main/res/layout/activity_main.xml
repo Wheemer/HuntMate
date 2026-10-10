@@ -85,6 +85,43 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent" />
 
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="end|center_vertical"
+            android:layout_marginEnd="12dp"
+            android:orientation="vertical"
+            android:background="@drawable/huntmate_button_neutral"
+            android:padding="4dp">
+
+            <Button
+                android:id="@+id/zoomInButton"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:minWidth="0dp"
+                android:minHeight="0dp"
+                android:padding="0dp"
+                android:background="@drawable/huntmate_button_primary"
+                android:text="+"
+                android:textColor="#FFFFFF"
+                android:textSize="26sp"
+                android:contentDescription="Zoom in" />
+
+            <Button
+                android:id="@+id/zoomOutButton"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:layout_marginTop="5dp"
+                android:minWidth="0dp"
+                android:minHeight="0dp"
+                android:padding="0dp"
+                android:background="@drawable/huntmate_button_neutral"
+                android:text="−"
+                android:textColor="#FFFFFF"
+                android:textSize="24sp"
+                android:contentDescription="Zoom out" />
+        </LinearLayout>
+
         <TextView
             android:id="@+id/mapAttribution"
             android:layout_width="wrap_content"
