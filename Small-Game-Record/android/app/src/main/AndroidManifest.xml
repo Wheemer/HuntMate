@@ -3,6 +3,8 @@
     <application
         android:allowBackup="true"
         android:label="Small Game Record"
+        android:icon="@drawable/ic_small_game_record"
+        android:roundIcon="@drawable/ic_small_game_record"
         android:supportsRtl="true"
         android:theme="@style/AppTheme"
         android:usesCleartextTraffic="false">
