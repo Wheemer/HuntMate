@@ -52,6 +52,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var toolSpinner: Spinner
     private var mapReady = false
     private var followLocation = true
+    private var satelliteMode = false
     private lateinit var sensorManager: SensorManager
     private var rotationSensor: Sensor? = null
     private var compassBearing: Float? = null
@@ -87,7 +88,7 @@ class MainActivity : AppCompatActivity() {
             map.addOnCameraMoveStartedListener { reason ->
                 if (reason == MapLibreMap.OnCameraMoveStartedListener.REASON_API_GESTURE) followLocation = false
             }
-            map.setStyle(Style.Builder().fromUri("asset://huntmate_osm_style.json")) { setupLayers() }
+            applyMapStyle()
         }
 
         findViewById<Button>(R.id.startButton).setOnClickListener { ensurePermissionAndStart() }
@@ -96,6 +97,11 @@ class MainActivity : AppCompatActivity() {
         findViewById<Button>(R.id.recenterButton).setOnClickListener {
             followLocation = true
             controller.snapshot.value.point?.let { map.animateCamera(CameraUpdateFactory.newLatLngZoom(LatLng(it.latitude, it.longitude), 15.5)) }
+        }
+        findViewById<Button>(R.id.mapTypeButton).setOnClickListener {
+            satelliteMode = !satelliteMode
+            findViewById<Button>(R.id.mapTypeButton).text = if (satelliteMode) "Map" else "Satellite"
+            applyMapStyle()
         }
         findViewById<Button>(R.id.compassButton).setOnClickListener {
             val bearing = compassBearing
@@ -141,6 +147,15 @@ class MainActivity : AppCompatActivity() {
         org.maplibre.android.module.http.HttpRequestUtil.setOkHttpClient(client)
     }
 
+    private fun applyMapStyle() {
+        val styleAsset = if (satelliteMode) "asset://huntmate_satellite_style.json" else "asset://huntmate_osm_style.json"
+        map.setStyle(Style.Builder().fromUri(styleAsset)) {
+            setupLayers()
+            findViewById<TextView>(R.id.mapAttribution).text =
+                if (satelliteMode) "Imagery © Esri and its imagery providers" else "© OpenStreetMap contributors · ODbL"
+        }
+    }
+
     private fun setupLayers() {
         mapReady = true
         val style = map.style ?: return
@@ -169,6 +184,7 @@ class MainActivity : AppCompatActivity() {
             PropertyFactory.circleColor("#1565C0"), PropertyFactory.circleRadius(7f),
             PropertyFactory.circleStrokeColor("#FFFFFF"), PropertyFactory.circleStrokeWidth(2f)
         ))
+        drawTrack(controller.snapshot.value)
     }
 
     private fun createDirectionArrowBitmap(): Bitmap {
