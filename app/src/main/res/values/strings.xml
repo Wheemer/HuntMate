@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">HuntMate Hunting &amp; Fishing</string>
+    <string name="tracking_channel_name">GPS Tracking</string>
+    <string name="tracking_notification_title">HuntMate Hunting &amp; Fishing tracking</string>
+</resources>

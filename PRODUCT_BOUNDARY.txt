@@ -1,0 +1,9 @@
+HUNTMATE HUNTING & FISHING
+
+This product contains exactly two workspaces: Hunting and Fishing.
+It does not contain Hiking, Camping, Water Sports, Backcountry, or General Outdoor.
+Those activities belong only to the separate HuntMate Outdoor app.
+
+Hunting-specific government datasets, regulations, boundaries, public-land layers, waypoints, and saved hunts remain product-local.
+Fishing data remains product-local.
+No shared application storage is used with HuntMate Outdoor.

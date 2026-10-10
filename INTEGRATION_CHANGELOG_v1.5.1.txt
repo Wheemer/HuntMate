@@ -1,0 +1,13 @@
+HuntMate Hunting & Fishing — map/GPS integration source package v1.5.1
+
+Changes in this package:
+- Reconciled supplied Map Section Handoff against the existing native source project.
+- Updated MapLibre HTTP User-Agent to HuntMate-Hunting-Fishing/1.5.1 (https://huntmate.app).
+- Added camera-gesture detection to disable automatic GPS follow when the user pans the map. Recenter restores follow mode.
+- Included the implementation handoff document for traceability.
+- Updated README with exact build/verification limitations.
+
+Not claimed:
+- No APK was compiled or device-tested in this environment.
+- OSM tile service is online-only and is not an offline map solution.
+- All Canadian government boundaries/buildings have not been ingested or validated.
