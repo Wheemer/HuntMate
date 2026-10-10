@@ -19,7 +19,15 @@ class HuntMateGpsController(context: Context) {
     fun stop() = send(GpsTrackingService.ACTION_STOP)
 
     private fun send(action: String) {
-        ContextCompat.startForegroundService(appContext, Intent(appContext, GpsTrackingService::class.java).setAction(action))
+        val command = Intent(appContext, GpsTrackingService::class.java).setAction(action)
+        if (action == GpsTrackingService.ACTION_START) {
+            // Starting location tracking must promote the service to foreground immediately.
+            ContextCompat.startForegroundService(appContext, command)
+        } else {
+            // Pause/stop are control commands, not new foreground work. Using
+            // startForegroundService here can crash when tracking is currently idle.
+            appContext.startService(command)
+        }
     }
 
     companion object {
