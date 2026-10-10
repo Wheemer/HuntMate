@@ -25,6 +25,8 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.huntmate.gps.activity.ActivityMode
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
 import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
 import org.maplibre.android.MapLibre
@@ -58,10 +60,15 @@ class MainActivity : AppCompatActivity() {
     private var compassBearing: Float? = null
     private var lastTravelBearing: Float? = null
     private var lastDirectionLocation: Location? = null
+    private val fusedLocationClient by lazy { LocationServices.getFusedLocationProviderClient(this) }
 
     private val notificationPermissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
     private val permissionLauncher = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
-        if (result[Manifest.permission.ACCESS_FINE_LOCATION] == true || result[Manifest.permission.ACCESS_COARSE_LOCATION] == true) controller.start()
+        if (result[Manifest.permission.ACCESS_FINE_LOCATION] == true || result[Manifest.permission.ACCESS_COARSE_LOCATION] == true) {
+            zoomToCurrentLocation()
+        } else {
+            Toast.makeText(this, "Allow location access to center the map on you.", Toast.LENGTH_LONG).show()
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -86,6 +93,12 @@ class MainActivity : AppCompatActivity() {
         mapView.onCreate(savedInstanceState)
         mapView.getMapAsync { m ->
             map = m
+            // Start zoomed into Newfoundland instead of showing the whole world.
+            map.moveCamera(CameraUpdateFactory.newLatLngZoom(LatLng(47.56, -52.71), 9.5))
+            map.uiSettings.isZoomGesturesEnabled = true
+            map.uiSettings.isScrollGesturesEnabled = true
+            map.uiSettings.isRotateGesturesEnabled = true
+            map.uiSettings.isTiltGesturesEnabled = true
             map.addOnCameraMoveStartedListener { reason ->
                 if (reason == MapLibreMap.OnCameraMoveStartedListener.REASON_API_GESTURE) followLocation = false
             }
@@ -97,7 +110,18 @@ class MainActivity : AppCompatActivity() {
         findViewById<Button>(R.id.stopButton).setOnClickListener { controller.stop() }
         findViewById<Button>(R.id.recenterButton).setOnClickListener {
             followLocation = true
-            controller.snapshot.value.point?.let { map.animateCamera(CameraUpdateFactory.newLatLngZoom(LatLng(it.latitude, it.longitude), 15.5)) }
+            val trackedPoint = controller.snapshot.value.point
+            if (trackedPoint != null) {
+                map.animateCamera(CameraUpdateFactory.newLatLngZoom(LatLng(trackedPoint.latitude, trackedPoint.longitude), 16.5))
+            } else {
+                requestLocationAndCenter()
+            }
+        }
+        findViewById<Button>(R.id.zoomInButton).setOnClickListener {
+            if (::map.isInitialized) map.animateCamera(CameraUpdateFactory.zoomIn())
+        }
+        findViewById<Button>(R.id.zoomOutButton).setOnClickListener {
+            if (::map.isInitialized) map.animateCamera(CameraUpdateFactory.zoomOut())
         }
         findViewById<Button>(R.id.mapTypeButton).setOnClickListener {
             mapMode = (mapMode + 1) % 4
@@ -304,6 +328,52 @@ class MainActivity : AppCompatActivity() {
         val fine = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
         val coarse = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
         if (fine || coarse) controller.start() else permissionLauncher.launch(HuntMateGpsController.requiredPermissions)
+    }
+
+    private fun requestLocationAndCenter() {
+        val fine = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        val coarse = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        if (fine || coarse) zoomToCurrentLocation() else permissionLauncher.launch(HuntMateGpsController.requiredPermissions)
+    }
+
+    @Suppress("MissingPermission")
+    private fun zoomToCurrentLocation() {
+        if (!::map.isInitialized || !mapReady) {
+            Toast.makeText(this, "Map is still loading. Try again in a moment.", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val fine = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        val coarse = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        if (!fine && !coarse) {
+            Toast.makeText(this, "Location permission is needed to find you.", Toast.LENGTH_LONG).show()
+            return
+        }
+        followLocation = true
+        fusedLocationClient.getCurrentLocation(
+            if (fine) Priority.PRIORITY_HIGH_ACCURACY else Priority.PRIORITY_BALANCED_POWER_ACCURACY,
+            null
+        ).addOnSuccessListener { location ->
+            val fix = location ?: controller.snapshot.value.point?.let {
+                Location("huntmate").apply { latitude = it.latitude; longitude = it.longitude; accuracy = it.accuracyMeters }
+            }
+            if (fix != null) {
+                map.animateCamera(CameraUpdateFactory.newLatLngZoom(LatLng(fix.latitude, fix.longitude), 16.5))
+                findViewById<TextView>(R.id.locationText).text =
+                    "%.6f, %.6f  •  ±%.1f m".format(fix.latitude, fix.longitude, fix.accuracy)
+            } else {
+                fusedLocationClient.lastLocation.addOnSuccessListener { last ->
+                    if (last != null) {
+                        map.animateCamera(CameraUpdateFactory.newLatLngZoom(LatLng(last.latitude, last.longitude), 16.5))
+                    } else {
+                        Toast.makeText(this, "No GPS fix yet. Turn on Location and try outdoors.", Toast.LENGTH_LONG).show()
+                    }
+                }.addOnFailureListener {
+                    Toast.makeText(this, "Couldn't get your location. Check Location settings.", Toast.LENGTH_LONG).show()
+                }
+            }
+        }.addOnFailureListener {
+            Toast.makeText(this, "Couldn't get your location. Check Location settings.", Toast.LENGTH_LONG).show()
+        }
     }
 
     private val compassListener = object : SensorEventListener {
