@@ -43,15 +43,16 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # Several density-specific launcher PNGs fail AAPT2 compilation.
-          # Use the validated mdpi image for all density folders during CI.
+          # Some density-specific launcher PNGs are malformed and fail AAPT2.
+          # Use the known-good mdpi launcher PNG for all launcher PNG variants in mipmap folders.
           source="app/src/main/res/mipmap-mdpi/ic_launcher.png"
           test -s "$source"
-          for density in hdpi xhdpi xxhdpi xxxhdpi; do
-            target="app/src/main/res/mipmap-$density/ic_launcher.png"
-            if [ -f "$target" ]; then cp "$source" "$target"; fi
-          done
-
+          find app/src/main/res -type f \( -path '*/mipmap-*/*launcher*.png' \) -print0 |
+            while IFS= read -r -d '' target; do
+              if [ "$target" != "$source" ]; then
+                cp "$source" "$target"
+              fi
+            done
       - name: Run clean unit tests
         run: gradle --no-daemon --stacktrace clean test
 
