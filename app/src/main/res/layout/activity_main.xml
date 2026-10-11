@@ -4,7 +4,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="#F7F8F6">
+    android:background="#101713">
 
     <TextView
         android:id="@+id/appTitle"
@@ -13,7 +13,7 @@
         android:text="HUNTMATE"
         android:textStyle="bold"
         android:textSize="22sp"
-        android:textColor="#183A2A"
+        android:textColor="#E4F0E7"
         android:padding="16dp" />
 
     <Spinner
@@ -40,11 +40,11 @@
         android:layout_marginBottom="8dp"
         android:text="HuntMate Apps · Get Outdoor"
         android:textAllCaps="false"
-        android:textColor="#183A2A"
-        android:backgroundTint="#E3EDE5"
+        android:textColor="#E4F0E7"
+        android:backgroundTint="#24352B"
         app:cornerRadius="24dp"
         app:icon="@drawable/ic_layers"
-        app:iconTint="#246B45"
+        app:iconTint="#8BD5A5"
         app:iconGravity="textStart" />
 
     <FrameLayout
@@ -66,7 +66,7 @@
             android:text="Official Zones"
             android:textAllCaps="false"
             android:textColor="#FFFFFF"
-            android:backgroundTint="#246B45"
+            android:backgroundTint="#347A50"
             app:cornerRadius="22dp"
             app:icon="@drawable/ic_layers"
             app:iconTint="#FFFFFF"
@@ -79,11 +79,11 @@
             android:layout_height="wrap_content"
             android:layout_gravity="bottom|end"
             android:layout_margin="8dp"
-            android:background="#EFFFFFFF"
+            android:background="#E51A241E"
             android:padding="5dp"
             android:text="© OpenStreetMap contributors · ODbL"
             android:textSize="11sp"
-            android:textColor="#303830" />
+            android:textColor="#DCE8DF" />
     </FrameLayout>
 
     <LinearLayout
@@ -94,7 +94,7 @@
         android:paddingEnd="12dp"
         android:paddingTop="10dp"
         android:paddingBottom="12dp"
-        android:background="#FFFFFF">
+        android:background="#171F1A">
 
         <TextView
             android:id="@+id/statusText"
@@ -103,7 +103,7 @@
             android:paddingStart="4dp"
             android:paddingEnd="4dp"
             android:text="GPS ready"
-            android:textColor="#183A2A"
+            android:textColor="#E4F0E7"
             android:textStyle="bold" />
 
         <TextView
@@ -114,7 +114,7 @@
             android:paddingEnd="4dp"
             android:paddingTop="3dp"
             android:text="Waiting for GPS…"
-            android:textColor="#59645D" />
+            android:textColor="#B3C2B7" />
 
         <TextView
             android:id="@+id/navigationText"
@@ -125,7 +125,7 @@
             android:paddingTop="3dp"
             android:paddingBottom="6dp"
             android:text="Save a truck, camp or waypoint for return guidance"
-            android:textColor="#3D245A"
+            android:textColor="#C5A7F2"
             android:textStyle="bold" />
 
         <TextView
@@ -137,7 +137,7 @@
             android:paddingTop="3dp"
             android:paddingBottom="8dp"
             android:text="Distance: 0 m"
-            android:textColor="#59645D" />
+            android:textColor="#B3C2B7" />
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -152,12 +152,12 @@
                 android:layout_marginEnd="10dp"
                 android:contentDescription="Recenter on my location"
                 android:text=""
-                android:backgroundTint="#F0F4F1"
+                android:backgroundTint="#24352B"
                 app:cornerRadius="26dp"
                 app:icon="@drawable/ic_my_location"
                 app:iconGravity="textStart"
                 app:iconSize="24dp"
-                app:iconTint="#246B45" />
+                app:iconTint="#8BD5A5" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/mapTypeButton"
@@ -167,13 +167,13 @@
                 android:minWidth="112dp"
                 android:text="Map"
                 android:textAllCaps="false"
-                android:textColor="#183A2A"
-                android:backgroundTint="#F0F4F1"
+                android:textColor="#E4F0E7"
+                android:backgroundTint="#24352B"
                 app:cornerRadius="26dp"
                 app:icon="@drawable/ic_layers"
                 app:iconGravity="textStart"
                 app:iconSize="22dp"
-                app:iconTint="#246B45" />
+                app:iconTint="#8BD5A5" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/compassButton"
@@ -181,12 +181,12 @@
                 android:layout_height="52dp"
                 android:contentDescription="Orient map to compass heading"
                 android:text=""
-                android:backgroundTint="#F0F4F1"
+                android:backgroundTint="#24352B"
                 app:cornerRadius="26dp"
                 app:icon="@drawable/ic_compass"
                 app:iconGravity="textStart"
                 app:iconSize="24dp"
-                app:iconTint="#246B45" />
+                app:iconTint="#8BD5A5" />
         </LinearLayout>
 
         <LinearLayout
@@ -204,11 +204,11 @@
                 android:layout_marginEnd="5dp"
                 android:text="Save point"
                 android:textAllCaps="false"
-                android:textColor="#183A2A"
-                android:backgroundTint="#E3EDE5"
+                android:textColor="#E4F0E7"
+                android:backgroundTint="#24352B"
                 app:cornerRadius="22dp"
                 app:icon="@drawable/ic_layers"
-                app:iconTint="#246B45"
+                app:iconTint="#8BD5A5"
                 app:iconGravity="textStart"
                 app:iconSize="18dp" />
 
@@ -221,7 +221,7 @@
                 android:text="Return to…"
                 android:textAllCaps="false"
                 android:textColor="#FFFFFF"
-                android:backgroundTint="#6A3D9A"
+                android:backgroundTint="#6F4A91"
                 app:cornerRadius="22dp"
                 app:icon="@drawable/ic_compass"
                 app:iconTint="#FFFFFF"
@@ -245,7 +245,7 @@
                 android:text="Start"
                 android:textAllCaps="false"
                 android:textColor="#FFFFFF"
-                android:backgroundTint="#246B45"
+                android:backgroundTint="#347A50"
                 app:cornerRadius="24dp"
                 app:icon="@drawable/ic_play"
                 app:iconTint="#FFFFFF"
@@ -261,11 +261,11 @@
                 android:layout_marginEnd="5dp"
                 android:text="Pause"
                 android:textAllCaps="false"
-                android:textColor="#183A2A"
-                android:backgroundTint="#E3EDE5"
+                android:textColor="#E4F0E7"
+                android:backgroundTint="#24352B"
                 app:cornerRadius="24dp"
                 app:icon="@drawable/ic_pause"
-                app:iconTint="#246B45"
+                app:iconTint="#8BD5A5"
                 app:iconGravity="textStart"
                 app:iconSize="18dp" />
 
