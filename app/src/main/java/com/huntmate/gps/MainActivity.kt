@@ -17,6 +17,8 @@ import android.os.Build
 import android.os.Bundle
 import android.os.CancellationSignal
 import android.content.Intent
+import android.content.ActivityNotFoundException
+import android.net.Uri
 import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.EditText
@@ -297,8 +299,28 @@ class MainActivity : AppCompatActivity() {
             "Management-area layers: NL Wildlife Division, Department of Forestry, Agriculture and Lands.\n\n" +
             "These are reference layers, not legal determinations. Seasons, licences, emergency closures, access permissions and municipal restrictions can change. Check the current NL Hunting and Trapping Guide before hunting.\n\n" +
             "GeoAtlas:\nhttps://dnrmaps.gov.nl.ca/arcgis/rest/services/GeoAtlas/Land_Use/MapServer\n\nHunting guide:\nhttps://www.gov.nl.ca/hunting-trapping-guide/"
-        ).setPositiveButton("Close", null).show()
+        ).setNeutralButton("Small-game guide") { _, _ -> chooseOfficialSmallGameGuide() }.setPositiveButton("Close", null).show()
     }
+    private fun chooseOfficialSmallGameGuide() {
+        val names = arrayOf("Island small game", "Labrador small game", "Closed Areas")
+        val urls = arrayOf(
+            "https://www.gov.nl.ca/hunting-trapping-guide/2026-27/hunting-seasons-and-zones/island/small-game/",
+            "https://www.gov.nl.ca/hunting-trapping-guide/2026-27/hunting-seasons-and-zones/labrador/small-game/",
+            "https://www.gov.nl.ca/hunting-trapping-guide/2026-27/closed-areas/"
+        )
+        AlertDialog.Builder(this).setTitle("Official NL small-game rules")
+            .setItems(names) { _, index -> openOfficialPage(urls[index]) }
+            .setNegativeButton("Cancel", null).show()
+    }
+
+    private fun openOfficialPage(url: String) {
+        try {
+            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+        } catch (_: ActivityNotFoundException) {
+            Toast.makeText(this, "No browser is available to open the official guide.", Toast.LENGTH_LONG).show()
+        }
+    }
+
     private fun setupOfficialLayers(style: Style) {
         officialLayers().filter { officialLayerVisibility[it.id] == true }.forEach { layer ->
             val sourceId = layer.id + "-source"
