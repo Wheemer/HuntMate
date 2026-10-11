@@ -19,6 +19,8 @@ import android.os.CancellationSignal
 import android.content.Intent
 import android.widget.ArrayAdapter
 import android.widget.Button
+import android.widget.EditText
+import androidx.appcompat.app.AlertDialog
 import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
@@ -45,6 +47,8 @@ import org.maplibre.geojson.FeatureCollection
 import org.maplibre.geojson.LineString
 import org.maplibre.geojson.Point
 import org.maplibre.geojson.Polygon
+import org.json.JSONArray
+import org.json.JSONObject
 
 class MainActivity : AppCompatActivity() {
     private lateinit var mapView: MapView
@@ -60,6 +64,10 @@ class MainActivity : AppCompatActivity() {
     private var compassBearing: Float? = null
     private var lastTravelBearing: Float? = null
     private var lastDirectionLocation: Location? = null
+    private val savedPlaces = mutableListOf<SavedPlace>()
+    private var navigationTarget: SavedPlace? = null
+
+    private data class SavedPlace(val name: String, val latitude: Double, val longitude: Double)
 
     private val notificationPermissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
     private var locateAfterPermission = false
@@ -84,12 +92,15 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
         mapView = findViewById(R.id.mapView)
         controller = HuntMateGpsController(this)
+        loadSavedPlaces()
         sensorManager = getSystemService(SENSOR_SERVICE) as SensorManager
         rotationSensor = sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)
         activitySpinner = findViewById(R.id.activitySpinner)
         toolSpinner = findViewById(R.id.toolSpinner)
         setupActivitySelectors()
         findViewById<Button>(R.id.appsButton).setOnClickListener { startActivity(Intent(this, AppHubActivity::class.java)) }
+        findViewById<Button>(R.id.saveWaypointButton).setOnClickListener { saveWaypoint() }
+        findViewById<Button>(R.id.returnButton).setOnClickListener { chooseReturnDestination() }
 
         if (Build.VERSION.SDK_INT >= 33 && ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
             notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
@@ -196,6 +207,7 @@ class MainActivity : AppCompatActivity() {
         style.addSource(GeoJsonSource("huntmate-location-source", FeatureCollection.fromFeatures(arrayOf())))
         style.addSource(GeoJsonSource("huntmate-accuracy-source", FeatureCollection.fromFeatures(arrayOf())))
         style.addSource(GeoJsonSource("huntmate-direction-source", FeatureCollection.fromFeatures(arrayOf())))
+        style.addSource(GeoJsonSource("huntmate-saved-source", FeatureCollection.fromFeatures(arrayOf())))
         style.addImage("direction-arrow", createDirectionArrowBitmap())
         style.addLayer(LineLayer("huntmate-track-line", "huntmate-track-source").withProperties(
             PropertyFactory.lineColor("#C62828"), PropertyFactory.lineWidth(4f), PropertyFactory.lineOpacity(0.9f)
@@ -213,10 +225,21 @@ class MainActivity : AppCompatActivity() {
             PropertyFactory.iconIgnorePlacement(true),
             PropertyFactory.iconSize(0.85f)
         ))
+        style.addLayer(CircleLayer("huntmate-saved-circles", "huntmate-saved-source").withProperties(
+            PropertyFactory.circleColor("#6A3D9A"), PropertyFactory.circleRadius(6f),
+            PropertyFactory.circleStrokeColor("#FFFFFF"), PropertyFactory.circleStrokeWidth(2f)
+        ))
+        style.addLayer(SymbolLayer("huntmate-saved-labels", "huntmate-saved-source").withProperties(
+            PropertyFactory.textField("{name}"), PropertyFactory.textSize(12f),
+            PropertyFactory.textColor("#3D245A"), PropertyFactory.textHaloColor("#FFFFFF"),
+            PropertyFactory.textHaloWidth(1f), PropertyFactory.textOffset(arrayOf(0f, 1.1f)),
+            PropertyFactory.textAllowOverlap(false), PropertyFactory.textIgnorePlacement(false)
+        ))
         style.addLayer(CircleLayer("huntmate-location-dot", "huntmate-location-source").withProperties(
             PropertyFactory.circleColor("#1565C0"), PropertyFactory.circleRadius(7f),
             PropertyFactory.circleStrokeColor("#FFFFFF"), PropertyFactory.circleStrokeWidth(2f)
         ))
+        drawSavedPlaces()
         drawTrack(controller.snapshot.value)
     }
 
@@ -310,6 +333,117 @@ class MainActivity : AppCompatActivity() {
         }
         findViewById<TextView>(R.id.locationText).text = s.point?.let { "%.6f, %.6f  •  ±%.1f m".format(it.latitude, it.longitude, it.accuracyMeters) } ?: "Waiting for GPS…"
         findViewById<TextView>(R.id.statsText).text = "Distance: ${formatDistance(s.distanceMeters)}   •   Points: ${s.points.size}"
+        updateNavigationText(s)
+    }
+
+
+    private fun loadSavedPlaces() {
+        savedPlaces.clear()
+        val raw = getSharedPreferences("huntmate_waypoints", MODE_PRIVATE).getString("places", "[]") ?: "[]"
+        runCatching {
+            val array = JSONArray(raw)
+            for (i in 0 until array.length()) {
+                val item = array.optJSONObject(i) ?: continue
+                val name = item.optString("name").trim()
+                val latitude = item.optDouble("latitude", Double.NaN)
+                val longitude = item.optDouble("longitude", Double.NaN)
+                if (name.isNotBlank() && latitude.isFinite() && longitude.isFinite() &&
+                    latitude in -90.0..90.0 && longitude in -180.0..180.0) {
+                    savedPlaces.add(SavedPlace(name, latitude, longitude))
+                }
+            }
+        }
+    }
+
+    private fun persistSavedPlaces() {
+        val array = JSONArray()
+        savedPlaces.forEach { place ->
+            array.put(JSONObject().put("name", place.name).put("latitude", place.latitude).put("longitude", place.longitude))
+        }
+        getSharedPreferences("huntmate_waypoints", MODE_PRIVATE).edit().putString("places", array.toString()).apply()
+    }
+
+    private fun saveWaypoint() {
+        val point = controller.snapshot.value.point
+        if (point == null) {
+            locateMe()
+            Toast.makeText(this, "Wait for a GPS fix, then save your location.", Toast.LENGTH_LONG).show()
+            return
+        }
+        val input = EditText(this).apply {
+            hint = "e.g. Truck, Camp, Hunting Spot"
+            setSingleLine(true)
+            setText("Waypoint ${savedPlaces.size + 1}")
+        }
+        AlertDialog.Builder(this)
+            .setTitle("Save current location")
+            .setMessage("Saved privately on this phone.")
+            .setView(input)
+            .setPositiveButton("Save") { _, _ ->
+                val name = input.text.toString().trim().ifBlank { "Waypoint ${savedPlaces.size + 1}" }
+                val place = SavedPlace(name, point.latitude, point.longitude)
+                savedPlaces.add(place)
+                navigationTarget = place
+                persistSavedPlaces()
+                drawSavedPlaces()
+                updateNavigationText(controller.snapshot.value)
+                Toast.makeText(this, "$name saved.", Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun chooseReturnDestination() {
+        if (savedPlaces.isEmpty()) {
+            Toast.makeText(this, "Save a truck, camp or waypoint first.", Toast.LENGTH_LONG).show()
+            return
+        }
+        AlertDialog.Builder(this)
+            .setTitle("Return to saved location")
+            .setItems(savedPlaces.map { it.name }.toTypedArray()) { _, index ->
+                navigationTarget = savedPlaces[index]
+                updateNavigationText(controller.snapshot.value)
+                val point = controller.snapshot.value.point
+                val target = navigationTarget!!
+                if (point != null) {
+                    val from = Location("current").apply { latitude = point.latitude; longitude = point.longitude }
+                    val to = Location("saved").apply { latitude = target.latitude; longitude = target.longitude }
+                    val bearing = (from.bearingTo(to) + 360f) % 360f
+                    Toast.makeText(this, "${target.name}: ${formatDistance(from.distanceTo(to).toDouble())} · bearing ${bearing.toInt()}° straight-line", Toast.LENGTH_LONG).show()
+                } else {
+                    locateMe()
+                }
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun drawSavedPlaces() {
+        val source = map.style?.getSourceAs<GeoJsonSource>("huntmate-saved-source") ?: return
+        val features = savedPlaces.map { place ->
+            Feature.fromGeometry(Point.fromLngLat(place.longitude, place.latitude)).apply {
+                addStringProperty("name", place.name)
+            }
+        }
+        source.setGeoJson(FeatureCollection.fromFeatures(features))
+    }
+
+    private fun updateNavigationText(snapshot: TrackingSnapshot) {
+        val view = findViewById<TextView>(R.id.navigationText) ?: return
+        val target = navigationTarget
+        val point = snapshot.point
+        if (target == null) {
+            view.text = if (savedPlaces.isEmpty()) "Save a truck, camp or waypoint for return guidance" else "Choose a saved location for return guidance"
+            return
+        }
+        if (point == null) {
+            view.text = "To ${target.name} · waiting for GPS"
+            return
+        }
+        val from = Location("current").apply { latitude = point.latitude; longitude = point.longitude }
+        val to = Location("saved").apply { latitude = target.latitude; longitude = target.longitude }
+        val bearing = (from.bearingTo(to) + 360f) % 360f
+        view.text = "To ${target.name}: ${formatDistance(from.distanceTo(to).toDouble())} · ${bearing.toInt()}° bearing (straight-line)"
     }
 
     private fun formatDistance(meters: Double): String = if (meters < 1000) "${meters.toInt()} m" else "%.2f km".format(meters / 1000.0)
