@@ -5,6 +5,9 @@ name: Android build
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -36,18 +39,31 @@ jobs:
       - name: Install Android SDK packages
         run: sdkmanager "platform-tools" "platforms;android-35" "build-tools;34.0.0"
 
-      - name: Run unit tests
-        run: gradle --stacktrace test
+      - name: Run clean unit tests
+        run: gradle --no-daemon --stacktrace clean test
 
       - name: Build debug APK
-        run: gradle --stacktrace assembleDebug
+        run: gradle --no-daemon --stacktrace assembleDebug
 
-      - name: Check APK
-        run: test -f app/build/outputs/apk/debug/app-debug.apk
+      - name: Verify APK archive, package metadata, and signature
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK="app/build/outputs/apk/debug/app-debug.apk"
+          test -s "$APK"
+          unzip -t "$APK"
+          "$ANDROID_HOME/build-tools/34.0.0/aapt" dump badging "$APK" | tee /tmp/huntmate-badging.txt
+          grep -q "package: name='com.huntmate.gps'" /tmp/huntmate-badging.txt
+          "$ANDROID_HOME/build-tools/34.0.0/apksigner" verify --verbose --print-certs "$APK"
+          echo "APK_SIZE_BYTES=$(stat -c%s "$APK")" >> "$GITHUB_ENV"
+          sha256sum "$APK" | tee app-debug.sha256
+          cat /tmp/huntmate-badging.txt
 
-      - name: Upload APK
+      - name: Upload verified APK and checksum
         uses: actions/upload-artifact@v4
         with:
           name: huntmate-hunting-fishing-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          path: |
+            app/build/outputs/apk/debug/app-debug.apk
+            app-debug.sha256
           if-no-files-found: error
