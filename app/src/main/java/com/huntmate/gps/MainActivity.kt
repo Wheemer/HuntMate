@@ -229,7 +229,7 @@ class MainActivity : AppCompatActivity() {
         style.addLayer(SymbolLayer("huntmate-saved-labels", "huntmate-saved-source").withProperties(
             PropertyFactory.textField("{name}"), PropertyFactory.textSize(12f),
             PropertyFactory.textColor("#3D245A"), PropertyFactory.textHaloColor("#FFFFFF"),
-            PropertyFactory.textHaloWidth(1f), PropertyFactory.textOffset(floatArrayOf(0f, 1.1f)),
+            PropertyFactory.textHaloWidth(1f), PropertyFactory.textOffset(arrayOf(0f, 1.1f)),
             PropertyFactory.textAllowOverlap(false), PropertyFactory.textIgnorePlacement(false)
         ))
         style.addLayer(CircleLayer("huntmate-location-dot", "huntmate-location-source").withProperties(
