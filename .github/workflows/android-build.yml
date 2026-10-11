@@ -18,6 +18,12 @@ jobs:
           distribution: temurin
           java-version: '17'
 
+      - name: Restore stable debug signing key
+        uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: huntmate-debug-signing-key-v1
+
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
         with:
