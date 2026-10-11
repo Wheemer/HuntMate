@@ -1,6 +1,5 @@
 plugins {
     id("com.android.application")
-    id("org.jetbrains.kotlin.android")
 }
 
 val signingKeystorePath = providers.environmentVariable("HUNTMATE_KEYSTORE_FILE").orNull
@@ -12,14 +11,14 @@ val hasPersistentSigning = signingKeystore?.isFile == true &&
 
 android {
     namespace = "com.huntmate.gps"
-    compileSdk = 35
+    compileSdk = 37
 
     buildFeatures { buildConfig = true }
 
     defaultConfig {
         applicationId = "com.huntmate.gps"
         minSdk = 26
-        targetSdk = 35
+        targetSdk = 37
         versionCode = 3
         versionName = "1.5.0"
         val outdoorDownloadUrl = providers.gradleProperty("huntmateOutdoorDownloadUrl").orNull ?: ""
@@ -56,7 +55,6 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions { jvmTarget = "17" }
 }
 
 dependencies {
