@@ -104,6 +104,17 @@
             android:textSize="10sp" />
 
         <Button
+            android:id="@+id/officialLayersButton"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginTop="8dp"
+            android:minWidth="0dp"
+            android:contentDescription="Show official Newfoundland and Labrador map layers"
+            android:text="Layers"
+            android:textAllCaps="false"
+            android:textSize="9sp" />
+
+        <Button
             android:id="@+id/compassButton"
             android:layout_width="48dp"
             android:layout_height="48dp"
