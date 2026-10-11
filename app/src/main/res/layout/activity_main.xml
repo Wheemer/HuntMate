@@ -57,6 +57,22 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent" />
 
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/governmentZonesButton"
+            android:layout_width="wrap_content"
+            android:layout_height="44dp"
+            android:layout_gravity="top|end"
+            android:layout_margin="10dp"
+            android:text="Official Zones"
+            android:textAllCaps="false"
+            android:textColor="#FFFFFF"
+            android:backgroundTint="#246B45"
+            app:cornerRadius="22dp"
+            app:icon="@drawable/ic_layers"
+            app:iconTint="#FFFFFF"
+            app:iconGravity="textStart"
+            app:iconSize="18dp" />
+
         <TextView
             android:id="@+id/mapAttribution"
             android:layout_width="wrap_content"
