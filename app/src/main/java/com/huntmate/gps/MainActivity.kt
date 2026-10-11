@@ -546,7 +546,12 @@ class MainActivity : AppCompatActivity() {
 
             IMPORTANT: Government planning, municipal, protected-area and management-area layers are not by themselves a complete legal determination that hunting is allowed or prohibited. Confirm current regulations, land rights, bylaws and closures.
 
-            Agency publication/update dates are not supplied by these query responses.\n\n            App retrieval times (UTC):\n            ${mapLayerFetchedAt.entries.sortedBy { it.key }.joinToString("\\n") { it.key + ": " + java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.CANADA).apply { timeZone = java.util.TimeZone.getTimeZone("UTC") }.format(java.util.Date(it.value)) }}\n\n            Retrieval time is not the agency publication date. Cached data may be stale; check the official source before hunting.
+            Agency publication/update dates are not supplied by these query responses.
+
+            App retrieval times (UTC):
+            ${mapLayerFetchedAt.entries.sortedBy { it.key }.joinToString("\n") { it.key + ": " + java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.CANADA).apply { timeZone = java.util.TimeZone.getTimeZone("UTC") }.format(java.util.Date(it.value)) }}
+
+            Retrieval time is not the agency publication date. Cached data may be stale; check the official source before hunting.
         """.trimIndent()
         AlertDialog.Builder(this).setTitle("Data sources & legal notes").setMessage(message)
             .setPositiveButton("Official hunting boundary page") { _, _ ->
