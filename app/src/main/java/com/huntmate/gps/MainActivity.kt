@@ -167,19 +167,21 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun applyMapStyle() {
-        val styleAsset = when (mapMode) {
+        // OpenFreeMap's Bright vector style gives HuntMate a cleaner, Google Maps-like
+        // road and place-label appearance. Keep the existing licensed imagery/topo modes.
+        val styleUri = when (mapMode) {
+            0 -> "https://tiles.openfreemap.org/styles/bright"
             1 -> "asset://huntmate_satellite_style.json"
             2 -> "asset://huntmate_topographic_style.json"
-            3 -> "asset://huntmate_hybrid_style.json"
-            else -> "asset://huntmate_osm_style.json"
+            else -> "asset://huntmate_hybrid_style.json"
         }
-        map.setStyle(Style.Builder().fromUri(styleAsset)) {
+        map.setStyle(Style.Builder().fromUri(styleUri)) {
             setupLayers()
             findViewById<TextView>(R.id.mapAttribution).text = when (mapMode) {
+                0 -> "© OpenStreetMap contributors · OpenFreeMap"
                 1 -> "Imagery © Esri and its imagery providers"
                 2 -> "Topographic map © Natural Resources Canada"
-                3 -> "Imagery © Esri · Labels and boundaries © Esri"
-                else -> "© OpenStreetMap contributors · ODbL"
+                else -> "Imagery © Esri · Labels and boundaries © Esri"
             }
         }
     }
