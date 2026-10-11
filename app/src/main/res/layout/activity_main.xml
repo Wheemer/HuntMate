@@ -90,6 +90,19 @@
             app:iconSize="18dp" />
 
         <TextView
+            android:id="@+id/governmentLayerLegend"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom|start"
+            android:layout_margin="8dp"
+            android:layout_marginEnd="96dp"
+            android:background="#E51A241E"
+            android:padding="7dp"
+            android:text="RED Protected areas  •  ORANGE Conserved  •  BLUE Water supply&#10;PURPLE Inuit lands  •  YELLOW Municipal borders&#10;Protected areas are not a complete no-hunting map."
+            android:textSize="10sp"
+            android:textColor="#F0F5F1" />
+
+        <TextView
             android:id="@+id/mapAttribution"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
