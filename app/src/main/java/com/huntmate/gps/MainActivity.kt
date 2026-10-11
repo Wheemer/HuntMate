@@ -57,6 +57,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var mapView: MapView
     private lateinit var map: MapLibreMap
     private lateinit var controller: HuntMateGpsController
+    private lateinit var mapDataRepository: MapDataRepository
+    private val mapLayerErrors = mutableMapOf<String, String>()
+    private val mapLayerFetchedAt = mutableMapOf<String, Long>()
     private lateinit var activitySpinner: Spinner
     private lateinit var toolSpinner: Spinner
     private var mapReady = false
@@ -97,6 +100,7 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
         mapView = findViewById(R.id.mapView)
         controller = HuntMateGpsController(this)
+        mapDataRepository = MapDataRepository(this)
         loadSavedPlaces()
         sensorManager = getSystemService(SENSOR_SERVICE) as SensorManager
         rotationSensor = sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)
@@ -222,6 +226,9 @@ class MainActivity : AppCompatActivity() {
         // The old RasterSource used a bbox export URL that MapLibre could not request as a tile pyramid.
         // Protected-area polygons are NOT a complete hunting-closure dataset; hunting rules have exceptions.
         addGovernmentGeoJsonLayer(style, "hm-protected-plan", 0, "#D32F2F", 0.24f, "#E53935", 2.5f)
+        addHuntingZoneLayer(style, "hm-moose-zones", 0, "#D6A900", "#8D6E00")
+        addHuntingZoneLayer(style, "hm-caribou-zones", 1, "#2E7D32", "#1B5E20", true)
+        addHuntingZoneLayer(style, "hm-bear-zones", 2, "#6A1B9A", "#4A148C")
         addGovernmentGeoJsonLayer(style, "hm-specified-material", 1, "#607D8B", 0.12f, "#78909C", 1.8f)
         addGovernmentGeoJsonLayer(style, "hm-protected-conserved", 4, "#F57C00", 0.16f, "#EF6C00", 2.0f)
         addGovernmentGeoJsonLayer(style, "hm-water-supply", 5, "#1976D2", 0.20f, "#42A5F5", 2.0f)
@@ -284,7 +291,18 @@ class MainActivity : AppCompatActivity() {
         val url = "https://dnrmaps.gov.nl.ca/arcgis/rest/services/GeoAtlas/Land_Use/MapServer/$layerIndex/query" +
             "?where=1%3D1&outFields=*&returnGeometry=true&outSR=4326&f=geoJSON"
         runCatching {
-            style.addSource(GeoJsonSource(sourceId, URI(url)))
+            style.addSource(GeoJsonSource(sourceId, FeatureCollection.fromFeatures(arrayOf())))
+            mapDataRepository.load(id, url) { result ->
+                runOnUiThread {
+                    val source = map.style?.getSourceAs<GeoJsonSource>(sourceId)
+                    if (source != null && result.geoJson != null) {
+                        runCatching { source.setGeoJson(FeatureCollection.fromJson(result.geoJson)) }
+                            .onSuccess { mapLayerErrors.remove(id); mapLayerFetchedAt[id] = result.fetchedAt }
+                            .onFailure { mapLayerErrors[id] = "Invalid map data" }
+                    } else if (result.error != null) mapLayerErrors[id] = result.error
+                    updateMapDataStatus()
+                }
+            }
             if (fill != null) {
                 style.addLayer(
                     org.maplibre.android.style.layers.FillLayer("$id-fill", sourceId).withProperties(
@@ -305,6 +323,59 @@ class MainActivity : AppCompatActivity() {
             )
         }.onFailure {
             android.util.Log.e("HuntMateMap", "Could not add official GeoAtlas layer $layerIndex ($id)", it)
+        }
+    }
+
+    private fun updateMapDataStatus() {
+        val status = findViewById<TextView>(R.id.mapDataStatus) ?: return
+        status.text = if (mapLayerErrors.isEmpty()) "Official map layers loaded" else
+            "MAP DATA WARNING: ${mapLayerErrors.size} layer(s) unavailable/stale. Open Layers for details."
+        status.visibility = android.view.View.VISIBLE
+    }
+
+    private fun addHuntingZoneLayer(style: Style, id: String, layerIndex: Int, fill: String, outline: String, caribouStatus: Boolean = false) {
+        val sourceId = "$id-source"
+        val url = "https://services8.arcgis.com/aCyQID5qQcyrJMm2/arcgis/rest/services/WLD_BigGameManagementArea/FeatureServer/$layerIndex/query?where=1%3D1&outFields=*&returnGeometry=true&outSR=4326&f=geojson"
+        runCatching {
+            style.addSource(GeoJsonSource(sourceId, FeatureCollection.fromFeatures(arrayOf())))
+            mapDataRepository.load(id, url) { result ->
+                runOnUiThread {
+                    val source = map.style?.getSourceAs<GeoJsonSource>(sourceId)
+                    if (source != null && result.geoJson != null) {
+                        runCatching { source.setGeoJson(FeatureCollection.fromJson(result.geoJson)) }
+                            .onSuccess { mapLayerErrors.remove(id); mapLayerFetchedAt[id] = result.fetchedAt }
+                            .onFailure { mapLayerErrors[id] = "Invalid map data" }
+                    } else if (result.error != null) mapLayerErrors[id] = result.error
+                    updateMapDataStatus()
+                }
+            }
+            val visibility = if (huntingLayerVisibility[id] != false) Property.VISIBLE else Property.NONE
+            val fillColor: Any = if (caribouStatus) {
+                org.maplibre.android.style.expressions.Expression.switchCase(
+                    org.maplibre.android.style.expressions.Expression.eq(
+                        org.maplibre.android.style.expressions.Expression.upcase(
+                            org.maplibre.android.style.expressions.Expression.toString(
+                                org.maplibre.android.style.expressions.Expression.get("status_ope")
+                            )
+                        ),
+                        org.maplibre.android.style.expressions.Expression.literal("CLOSED")
+                    ),
+                    org.maplibre.android.style.expressions.Expression.literal("#D32F2F"),
+                    org.maplibre.android.style.expressions.Expression.literal(fill)
+                )
+            } else fill
+            style.addLayer(org.maplibre.android.style.layers.FillLayer("$id-fill", sourceId).withProperties(
+                PropertyFactory.fillColor(fillColor), PropertyFactory.fillOpacity(0.26f),
+                PropertyFactory.fillOutlineColor(outline), PropertyFactory.visibility(visibility)
+            ))
+            style.addLayer(LineLayer("$id-line", sourceId).withProperties(
+                PropertyFactory.lineColor(outline), PropertyFactory.lineWidth(2.0f),
+                PropertyFactory.visibility(visibility)
+            ))
+        }.onFailure {
+            mapLayerErrors[id] = "Layer could not be initialized"
+            updateMapDataStatus()
+            android.util.Log.e("HuntMateMap", "Could not initialize WLD layer " + id, it)
         }
     }
 
@@ -345,7 +416,7 @@ class MainActivity : AppCompatActivity() {
             "Black bear management areas" to "hm-bear-zones"
         ).forEach { (label, key) ->
             content.addView(android.widget.CheckBox(this).apply {
-                text = label; isChecked = huntingLayerVisibility[key] ?: true
+                text = label + (mapLayerErrors[key]?.let { " — UNAVAILABLE/STALE" } ?: ""); isChecked = huntingLayerVisibility[key] ?: true
                 setOnCheckedChangeListener { _, checked ->
                     huntingLayerVisibility[key] = checked
                     setLayerGroupVisibility(key, checked)
@@ -365,7 +436,7 @@ class MainActivity : AppCompatActivity() {
             "Wind Energy Land Reserve" to "hm-wind-reserve"
         ).forEach { (label, key) ->
             content.addView(android.widget.CheckBox(this).apply {
-                text = label; isChecked = landLayerVisibility[key] ?: true
+                text = label + (mapLayerErrors[key]?.let { " — UNAVAILABLE/STALE" } ?: ""); isChecked = landLayerVisibility[key] ?: true
                 setOnCheckedChangeListener { _, checked ->
                     landLayerVisibility[key] = checked
                     setLayerGroupVisibility(key, checked)
@@ -409,7 +480,7 @@ class MainActivity : AppCompatActivity() {
 
             IMPORTANT: Government planning, municipal, protected-area and management-area layers are not by themselves a complete legal determination that hunting is allowed or prohibited. Confirm current regulations, land rights, bylaws and closures.
 
-            Agency publication/update dates are shown as unavailable until a source supplies a verifiable date. App fetch time and cache age must not be mistaken for the agency publication date.
+            Agency publication/update dates are not supplied by these query responses.\n\n            App retrieval times (UTC):\n            ${mapLayerFetchedAt.entries.sortedBy { it.key }.joinToString("\\n") { it.key + ": " + java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.CANADA).apply { timeZone = java.util.TimeZone.getTimeZone("UTC") }.format(java.util.Date(it.value)) }}\n\n            Retrieval time is not the agency publication date. Cached data may be stale; check the official source before hunting.
         """.trimIndent()
         AlertDialog.Builder(this).setTitle("Data sources & legal notes").setMessage(message)
             .setPositiveButton("Official hunting boundary page") { _, _ ->
