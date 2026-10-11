@@ -5,7 +5,7 @@
     "toporama": {
       "type": "raster",
       "tiles": [
-        "https://maps.geogratis.gc.ca/wms/toporama_en?SERVICE=WMS&REQUEST=GetMap&FORMAT=image/jpeg&TRANSPARENT=FALSE&STYLES=&VERSION=1.3.0&LAYERS=WMS-Toporama&WIDTH=256&HEIGHT=256&CRS=EPSG:3857&BBOX={bbox-epsg-3857}"
+        "https://maps.geogratis.gc.ca/wms/toporama_en?SERVICE=WMS&REQUEST=GetMap&FORMAT=image/jpeg&TRANSPARENT=FALSE&STYLES=&VERSION=1.1.1&LAYERS=WMS-Toporama&WIDTH=256&HEIGHT=256&SRS=EPSG:3857&BBOX={bbox-epsg-3857}"
       ],
       "tileSize": 256,
       "attribution": "Toporama © Natural Resources Canada"
