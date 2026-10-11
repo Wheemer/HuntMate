@@ -29,7 +29,7 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
         with:
-          gradle-version: '9.4.1'
+          gradle-version: '9.6.0'
           cache-provider: basic
 
       - name: Set up Android SDK
@@ -45,6 +45,19 @@ jobs:
         run: |
           test -n "$HUNTMATE_KEYSTORE_BASE64"
           printf '%s' "$HUNTMATE_KEYSTORE_BASE64" | base64 --decode > "$HUNTMATE_KEYSTORE_FILE"
+
+      - name: Resolve Android app dependencies
+        run: |
+          set -euo pipefail
+          if ! gradle --stacktrace :app:dependencies --configuration debugCompileClasspath > dependency-compile.txt 2>&1; then
+            cat dependency-compile.txt
+            exit 1
+          fi
+          if ! gradle --stacktrace :app:dependencies --configuration debugRuntimeClasspath > dependency-runtime.txt 2>&1; then
+            cat dependency-runtime.txt
+            exit 1
+          fi
+          echo "Android compile and runtime dependencies resolved successfully."
 
       - name: Run unit tests
         run: gradle --stacktrace test
