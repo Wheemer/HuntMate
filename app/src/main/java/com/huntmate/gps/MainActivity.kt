@@ -1,4 +1,4 @@
-package com.huntmate.gps
+successfully downloaded text file (SHA: d56dda71397acc791f49de4dc253e08cca25e6fd)package com.huntmate.gps
 
 import android.Manifest
 import android.content.pm.PackageManager
@@ -17,13 +17,18 @@ import android.os.Bundle
 import android.content.Intent
 import android.net.Uri
 import java.net.URI
+import android.content.res.ColorStateList
+import android.view.View
 import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.EditText
+import android.widget.ImageView
+import android.widget.LinearLayout
 import androidx.appcompat.app.AlertDialog
 import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
+import com.google.android.material.button.MaterialButton
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
@@ -69,6 +74,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var activitySpinner: Spinner
     private lateinit var toolSpinner: Spinner
     private var mapReady = false
+    /** First style load positions the camera; basemap switches must never recenter the map. */
+    private var initialCameraSet = false
     private val landLayerVisibility = mutableMapOf(
         "hm-protected-plan" to true, "hm-specified-material" to true,
         "hm-inuit-lands" to true, "hm-inuit-settlement" to true,
@@ -124,6 +131,7 @@ class MainActivity : AppCompatActivity() {
     private val notificationPermissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
     private val permissionLauncher = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
         if (result[Manifest.permission.ACCESS_FINE_LOCATION] == true || result[Manifest.permission.ACCESS_COARSE_LOCATION] == true) controller.start()
+        else Toast.makeText(this, "Location permission denied — HuntMate can't show your position or record tracks.", Toast.LENGTH_LONG).show()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -142,8 +150,18 @@ class MainActivity : AppCompatActivity() {
         activitySpinner = findViewById(R.id.activitySpinner)
         toolSpinner = findViewById(R.id.toolSpinner)
         setupActivitySelectors()
-        findViewById<Button>(R.id.appsButton).setOnClickListener { startActivity(Intent(this, AppHubActivity::class.java)) }
+        findViewById<Button>(R.id.appsMenuButton).setOnClickListener { startActivity(Intent(this, AppHubActivity::class.java)) }
         findViewById<Button>(R.id.layersButton).setOnClickListener { showLayersMenu() }
+
+        // Status header expands to reveal coordinates and navigation details; collapsed by
+        // default so the map gets maximum screen space.
+        var detailsExpanded = false
+        findViewById<LinearLayout>(R.id.statusHeader).setOnClickListener {
+            detailsExpanded = !detailsExpanded
+            findViewById<LinearLayout>(R.id.statusDetails).visibility = if (detailsExpanded) View.VISIBLE else View.GONE
+            findViewById<ImageView>(R.id.statusChevron).rotation = if (detailsExpanded) 180f else 0f
+            findViewById<ImageView>(R.id.statusChevron).contentDescription = if (detailsExpanded) "Hide details" else "Show details"
+        }
 
         findViewById<Button>(R.id.saveWaypointButton).setOnClickListener { saveWaypoint() }
         findViewById<Button>(R.id.returnButton).setOnClickListener { chooseReturnDestination() }
@@ -155,12 +173,6 @@ class MainActivity : AppCompatActivity() {
         mapView.onCreate(savedInstanceState)
         mapView.getMapAsync { m ->
             map = m
-            // Start over Newfoundland and Labrador so the map is useful before GPS permission,
-            // a location fix, or any optional map data is available.
-            map.cameraPosition = org.maplibre.android.camera.CameraPosition.Builder()
-                .target(LatLng(49.3, -56.0))
-                .zoom(5.2)
-                .build()
             map.addOnCameraMoveStartedListener { reason ->
                 if (reason == MapLibreMap.OnCameraMoveStartedListener.REASON_API_GESTURE) followLocation = false
             }
@@ -184,12 +196,13 @@ class MainActivity : AppCompatActivity() {
         }
         findViewById<Button>(R.id.mapTypeButton).setOnClickListener {
             mapMode = (mapMode + 1) % 4
-            findViewById<Button>(R.id.mapTypeButton).text = when (mapMode) {
-                0 -> "Map"
+            val name = when (mapMode) {
+                0 -> "Standard map"
                 1 -> "Satellite"
-                2 -> "Topo"
-                else -> "Hybrid"
+                2 -> "Topographic"
+                else -> "Hybrid satellite"
             }
+            Toast.makeText(this, name, Toast.LENGTH_SHORT).show()
             applyMapStyle()
         }
         findViewById<Button>(R.id.compassButton).setOnClickListener {
@@ -246,6 +259,15 @@ class MainActivity : AppCompatActivity() {
             else -> "asset://huntmate_hybrid_style.json"
         }
         map.setStyle(Style.Builder().fromUri(styleUri)) {
+            if (!initialCameraSet) {
+                initialCameraSet = true
+                // First style load: start over Newfoundland and Labrador so the map is useful
+                // before GPS permission or a location fix; prefer the last known location
+                // (restored session) when one exists. Never recenter on later style switches.
+                val last = controller.snapshot.value.point
+                val target = if (last != null) LatLng(last.latitude, last.longitude) else LatLng(49.3, -56.0)
+                map.moveCamera(CameraUpdateFactory.newLatLngZoom(target, if (last != null) 13.0 else 5.2))
+            }
             setupLayers()
             findViewById<TextView>(R.id.mapAttribution).text = when (mapMode) {
                 0 -> "© OpenStreetMap contributors · OpenFreeMap"
@@ -475,7 +497,6 @@ class MainActivity : AppCompatActivity() {
         heading("BASEMAP")
         val radioGroup = android.widget.RadioGroup(this).apply { orientation = android.widget.RadioGroup.VERTICAL }
         val baseNames = listOf("Regular road map", "Satellite", "Topographic", "Hybrid satellite")
-        val baseShortNames = listOf("Map", "Satellite", "Topo", "Hybrid")
         baseNames.forEachIndexed { index, label ->
             radioGroup.addView(android.widget.RadioButton(this).apply {
                 id = 8000 + index; text = label; isChecked = mapMode == index
@@ -485,7 +506,6 @@ class MainActivity : AppCompatActivity() {
             val selected = checkedId - 8000
             if (selected in 0..3 && selected != mapMode) {
                 mapMode = selected
-                findViewById<Button>(R.id.mapTypeButton).text = baseShortNames[selected]
                 applyMapStyle()
             }
         }
@@ -852,6 +872,39 @@ class MainActivity : AppCompatActivity() {
         findViewById<TextView>(R.id.locationText).text = s.point?.let { "%.6f, %.6f  •  ±%.1f m".format(it.latitude, it.longitude, it.accuracyMeters) } ?: "Waiting for GPS…"
         findViewById<TextView>(R.id.statsText).text = "Distance: ${formatDistance(s.distanceMeters)}   •   Points: ${s.points.size}"
         updateNavigationText(s)
+        updateTrackingControls(s.state)
+    }
+
+    /** One clear primary tracking action: only the buttons that make sense right now are shown. */
+    private fun updateTrackingControls(state: TrackingState) {
+        val start = findViewById<MaterialButton>(R.id.startButton)
+        val pause = findViewById<MaterialButton>(R.id.pauseButton)
+        val stop = findViewById<MaterialButton>(R.id.stopButton)
+        val dot = findViewById<View>(R.id.statusDot)
+        when (state) {
+            TrackingState.IDLE -> {
+                start.visibility = View.VISIBLE
+                start.text = "Start tracking"
+                start.setIconResource(R.drawable.ic_play)
+                pause.visibility = View.GONE
+                stop.visibility = View.GONE
+                dot.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#9AA5A0"))
+            }
+            TrackingState.TRACKING -> {
+                start.visibility = View.GONE
+                pause.visibility = View.VISIBLE
+                stop.visibility = View.VISIBLE
+                dot.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#3DDC84"))
+            }
+            TrackingState.PAUSED -> {
+                start.visibility = View.VISIBLE
+                start.text = "Resume"
+                start.setIconResource(R.drawable.ic_play)
+                pause.visibility = View.GONE
+                stop.visibility = View.VISIBLE
+                dot.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#FFB300"))
+            }
+        }
     }
 
 
