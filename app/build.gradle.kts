@@ -3,6 +3,13 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 
+val signingKeystorePath = providers.environmentVariable("HUNTMATE_KEYSTORE_FILE").orNull
+val signingKeystore = signingKeystorePath?.let(::file)
+val hasPersistentSigning = signingKeystore?.isFile == true &&
+    providers.environmentVariable("HUNTMATE_KEYSTORE_PASSWORD").isPresent &&
+    providers.environmentVariable("HUNTMATE_KEY_ALIAS").isPresent &&
+    providers.environmentVariable("HUNTMATE_KEY_PASSWORD").isPresent
+
 android {
     namespace = "com.huntmate.gps"
     compileSdk = 35
@@ -19,9 +26,28 @@ android {
         buildConfigField("String", "OUTDOOR_DOWNLOAD_URL", "\"$outdoorDownloadUrl\"")
     }
 
+    signingConfigs {
+        if (hasPersistentSigning) {
+            create("persistent") {
+                storeFile = requireNotNull(signingKeystore)
+                storePassword = providers.environmentVariable("HUNTMATE_KEYSTORE_PASSWORD").get()
+                keyAlias = providers.environmentVariable("HUNTMATE_KEY_ALIAS").get()
+                keyPassword = providers.environmentVariable("HUNTMATE_KEY_PASSWORD").get()
+            }
+        }
+    }
+
     buildTypes {
+        getByName("debug") {
+            if (hasPersistentSigning) {
+                signingConfig = signingConfigs.getByName("persistent")
+            }
+        }
         release {
             isMinifyEnabled = false
+            if (hasPersistentSigning) {
+                signingConfig = signingConfigs.getByName("persistent")
+            }
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
