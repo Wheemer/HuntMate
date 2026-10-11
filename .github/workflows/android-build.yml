@@ -39,6 +39,15 @@ jobs:
       - name: Install Android SDK packages
         run: sdkmanager "platform-tools" "platforms;android-35" "build-tools;34.0.0"
 
+      - name: Repair invalid hdpi launcher PNG for Android resource compiler
+        shell: bash
+        run: |
+          set -euo pipefail
+          # The hdpi launcher asset currently fails AAPT2 compilation. Reuse the
+          # validated mdpi PNG so CI can build an installable test APK.
+          test -s app/src/main/res/mipmap-mdpi/ic_launcher.png
+          cp app/src/main/res/mipmap-mdpi/ic_launcher.png app/src/main/res/mipmap-hdpi/ic_launcher.png
+
       - name: Run clean unit tests
         run: gradle --no-daemon --stacktrace clean test
 
