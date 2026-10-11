@@ -26,6 +26,7 @@ class AppHubActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_app_hub)
         findViewById<Button>(R.id.closeHubButton).setOnClickListener { finish() }
+        findViewById<Button>(R.id.smallGameRecordsButton).setOnClickListener { startActivity(Intent(this, SmallGameRecordsActivity::class.java)) }
         findViewById<Button>(R.id.outdoorButton).setOnClickListener { openOrOfferOutdoor() }
         refreshOutdoorButton()
     }

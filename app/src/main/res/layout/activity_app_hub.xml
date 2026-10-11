@@ -7,16 +7,19 @@
             android:text="HuntMate Apps" android:textStyle="bold" android:textSize="26sp" />
         <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
-            android:text="Hunting &amp; Fishing is the main HuntMate app. Optional companion apps can be installed separately and launched from here." />
+            android:text="Hunting &amp; Fishing is the main HuntMate app. Your records stay private on this device." />
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="24dp" android:text="Small Game Records" android:textStyle="bold" android:textSize="20sp" />
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="6dp" android:text="Log harvests, search past entries and export a CSV backup." />
+        <Button android:id="@+id/smallGameRecordsButton" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="12dp" android:text="Open Small Game Records" />
         <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
             android:layout_marginTop="24dp" android:text="HuntMate Outdoor" android:textStyle="bold" android:textSize="20sp" />
         <TextView android:id="@+id/outdoorStatus" android:layout_width="match_parent" android:layout_height="wrap_content"
             android:layout_marginTop="6dp" android:text="Checking…" />
         <Button android:id="@+id/outdoorButton" android:layout_width="match_parent" android:layout_height="wrap_content"
             android:layout_marginTop="12dp" android:text="Get HuntMate Outdoor" />
-        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
-            android:text="Data stays separate: Hunting &amp; Fishing records are not merged into the Outdoor app." />
         <Button android:id="@+id/closeHubButton" android:layout_width="match_parent" android:layout_height="wrap_content"
             android:layout_marginTop="24dp" android:text="Back to Hunting &amp; Fishing" />
     </LinearLayout>
