@@ -16,7 +16,11 @@
         android:label="@string/app_name"
         android:supportsRtl="true"
         android:theme="@style/Theme.HuntMateGps">
-        <activity android:name=".SmallGameRecordsActivity" android:exported="false" />
+        <service
+            android:name=".HuntLocationService"
+            android:exported="false"
+            android:foregroundServiceType="location" />
+        <activity android:name=".SmallGameRecordsActivity" android:configChanges="orientation|screenSize|keyboardHidden" android:exported="false" />
         <activity android:name=".AppHubActivity" android:exported="false" />
         <activity android:name=".MainActivity" android:exported="true">
             <intent-filter>
