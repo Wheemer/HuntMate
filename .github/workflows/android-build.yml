@@ -4,6 +4,12 @@ name: Android build
   push:
   pull_request:
   workflow_dispatch:
+    inputs:
+      publish_apk:
+        description: Publish the verified APK as a direct GitHub download
+        required: true
+        default: false
+        type: boolean
 
 permissions:
   contents: write
@@ -81,7 +87,7 @@ jobs:
           if-no-files-found: error
 
       - name: Publish direct APK download
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: github.event_name == 'workflow_dispatch' && inputs.publish_apk
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -89,6 +95,6 @@ jobs:
             --repo "${GITHUB_REPOSITORY}" \
             --target "${GITHUB_SHA}" \
             --title "HuntMate APK build ${GITHUB_RUN_NUMBER}" \
-            --notes "Automated APK build from ${GITHUB_SHA}." \
+            --notes "Manually published APK build from ${GITHUB_SHA}." \
             --prerelease \
             app/build/outputs/apk/debug/app-debug.apk
