@@ -43,11 +43,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # The hdpi and xhdpi launcher assets fail AAPT2 compilation. Reuse the
-          # validated mdpi PNG for these build-time copies so CI can produce a test APK.
-          test -s app/src/main/res/mipmap-mdpi/ic_launcher.png
-          cp app/src/main/res/mipmap-mdpi/ic_launcher.png app/src/main/res/mipmap-hdpi/ic_launcher.png
-          cp app/src/main/res/mipmap-mdpi/ic_launcher.png app/src/main/res/mipmap-xhdpi/ic_launcher.png
+          # Several density-specific launcher PNGs fail AAPT2 compilation.
+          # Use the validated mdpi image for all density folders during CI.
+          source="app/src/main/res/mipmap-mdpi/ic_launcher.png"
+          test -s "$source"
+          for density in hdpi xhdpi xxhdpi xxxhdpi; do
+            target="app/src/main/res/mipmap-$density/ic_launcher.png"
+            if [ -f "$target" ]; then cp "$source" "$target"; fi
+          done
 
       - name: Run clean unit tests
         run: gradle --no-daemon --stacktrace clean test
