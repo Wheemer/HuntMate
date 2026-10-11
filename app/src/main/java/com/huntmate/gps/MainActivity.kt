@@ -126,10 +126,10 @@ class MainActivity : AppCompatActivity() {
         findViewById<Button>(R.id.mapTypeButton).setOnClickListener {
             mapMode = (mapMode + 1) % 4
             findViewById<Button>(R.id.mapTypeButton).text = when (mapMode) {
-                0 -> "Satellite"
-                1 -> "Topo"
-                2 -> "Hybrid"
-                else -> "Map"
+                0 -> "Map"
+                1 -> "Satellite"
+                2 -> "Topo"
+                else -> "Hybrid"
             }
             applyMapStyle()
         }
