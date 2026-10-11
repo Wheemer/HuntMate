@@ -39,20 +39,6 @@ jobs:
       - name: Install Android SDK packages
         run: sdkmanager "platform-tools" "platforms;android-35" "build-tools;34.0.0"
 
-      - name: Repair invalid launcher PNGs for Android resource compiler
-        shell: bash
-        run: |
-          set -euo pipefail
-          # Some density-specific launcher PNGs are malformed and fail AAPT2.
-          # Use the known-good mdpi launcher PNG for all launcher PNG variants in mipmap folders.
-          source="app/src/main/res/mipmap-mdpi/ic_launcher.png"
-          test -s "$source"
-          find app/src/main/res -type f \( -path '*/mipmap-*/*launcher*.png' \) -print0 |
-            while IFS= read -r -d '' target; do
-              if [ "$target" != "$source" ]; then
-                cp "$source" "$target"
-              fi
-            done
       - name: Run clean unit tests
         run: gradle --no-daemon --stacktrace clean test
 
