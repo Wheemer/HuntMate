@@ -40,6 +40,9 @@ import org.maplibre.android.style.layers.CircleLayer
 import org.maplibre.android.style.layers.LineLayer
 import org.maplibre.android.style.layers.SymbolLayer
 import org.maplibre.android.style.layers.PropertyFactory
+import org.maplibre.android.style.layers.Property
+import org.maplibre.android.style.layers.RasterLayer
+import org.maplibre.android.style.sources.RasterSource
 import org.maplibre.android.style.sources.GeoJsonSource
 import org.maplibre.geojson.Feature
 import org.maplibre.geojson.FeatureCollection
@@ -56,6 +59,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var activitySpinner: Spinner
     private lateinit var toolSpinner: Spinner
     private var mapReady = false
+    private var landRestrictionsEnabled = true
     // Keep the initial map stable until the user explicitly recenters on GPS.
     private var followLocation = false
     private var mapMode = 0 // 0 = OpenStreetMap, 1 = satellite, 2 = topographic, 3 = hybrid satellite
@@ -91,6 +95,17 @@ class MainActivity : AppCompatActivity() {
         findViewById<Button>(R.id.appsButton).setOnClickListener { startActivity(Intent(this, AppHubActivity::class.java)) }
         findViewById<Button>(R.id.governmentZonesButton).setOnClickListener {
             startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://www.gov.nl.ca/fal/public-education/wildlife/hunting/boundry/")))
+        }
+        findViewById<Button>(R.id.landRestrictionsButton).setOnClickListener {
+            landRestrictionsEnabled = !landRestrictionsEnabled
+            findViewById<Button>(R.id.landRestrictionsButton).text =
+                if (landRestrictionsEnabled) "Land Layers ON" else "Land Layers OFF"
+            map.style?.getLayerAs<RasterLayer>("government-land-use-layer")?.setProperties(
+                PropertyFactory.visibility(if (landRestrictionsEnabled) Property.VISIBLE else Property.NONE)
+            )
+            if (landRestrictionsEnabled) {
+                Toast.makeText(this, "Showing government land-use restrictions. Check official hunting rules before hunting.", Toast.LENGTH_LONG).show()
+            }
         }
         findViewById<Button>(R.id.saveWaypointButton).setOnClickListener { saveWaypoint() }
         findViewById<Button>(R.id.returnButton).setOnClickListener { chooseReturnDestination() }
@@ -204,6 +219,18 @@ class MainActivity : AppCompatActivity() {
     private fun setupLayers() {
         mapReady = true
         val style = map.style ?: return
+        // Live official NL GeoAtlas land-use overlay. This is online data, not an offline map.
+        // Includes protected areas, specified material lands, Labrador Inuit Lands/Settlement
+        // Area, public water supplies, municipal boundaries, planning areas and wind-energy reserve.
+        style.addSource(RasterSource(
+            "government-land-use-source",
+            "https://dnrmaps.gov.nl.ca/arcgis/rest/services/GeoAtlas/Land_Use/MapServer/export?bbox={bbox-epsg-3857}&bboxSR=3857&imageSR=3857&size=256,256&format=png32&transparent=true&layers=show:0,1,2,3,4,5,6,7,8&f=image",
+            256
+        ))
+        style.addLayer(RasterLayer("government-land-use-layer", "government-land-use-source").withProperties(
+            PropertyFactory.rasterOpacity(0.58f),
+            PropertyFactory.visibility(if (landRestrictionsEnabled) Property.VISIBLE else Property.NONE)
+        ))
         style.addSource(GeoJsonSource("huntmate-track-source", FeatureCollection.fromFeatures(arrayOf())))
         style.addSource(GeoJsonSource("huntmate-location-source", FeatureCollection.fromFeatures(arrayOf())))
         style.addSource(GeoJsonSource("huntmate-accuracy-source", FeatureCollection.fromFeatures(arrayOf())))
