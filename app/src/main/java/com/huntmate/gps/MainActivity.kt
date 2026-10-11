@@ -19,11 +19,9 @@ import android.os.CancellationSignal
 import android.content.Intent
 import android.content.ActivityNotFoundException
 import android.net.Uri
-import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.EditText
 import androidx.appcompat.app.AlertDialog
-import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -58,8 +56,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var map: MapLibreMap
     private lateinit var controller: HuntMateGpsController
     private lateinit var mapDataRepository: MapDataRepository
-    private lateinit var activitySpinner: Spinner
-    private lateinit var toolSpinner: Spinner
+    private lateinit var activityButton: Button
     private var mapReady = false
     private var followLocation = true
     private var mapMode = 0 // 0 = OpenStreetMap, 1 = satellite, 2 = topographic, 3 = hybrid satellite
@@ -105,12 +102,11 @@ class MainActivity : AppCompatActivity() {
         loadSavedPlaces()
         sensorManager = getSystemService(SENSOR_SERVICE) as SensorManager
         rotationSensor = sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)
-        activitySpinner = findViewById(R.id.activitySpinner)
-        toolSpinner = findViewById(R.id.toolSpinner)
-        setupActivitySelectors()
+        activityButton = findViewById(R.id.activityButton)
+        setupActivityChooser()
+        findViewById<Button>(R.id.toolsButton).setOnClickListener { showToolsMenu() }
+        findViewById<Button>(R.id.trackingPanelToggle).setOnClickListener { toggleTrackingDetails() }
         findViewById<Button>(R.id.appsButton).setOnClickListener { startActivity(Intent(this, AppHubActivity::class.java)) }
-        findViewById<Button>(R.id.saveWaypointButton).setOnClickListener { saveWaypoint() }
-        findViewById<Button>(R.id.returnButton).setOnClickListener { chooseReturnDestination() }
         findViewById<Button>(R.id.officialLayersButton).setOnClickListener { showOfficialLayers() }
 
         if (Build.VERSION.SDK_INT >= 33 && ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
@@ -138,11 +134,6 @@ class MainActivity : AppCompatActivity() {
             applyMapStyle()
             Toast.makeText(this, "Map layer: ${currentMapModeName()}", Toast.LENGTH_SHORT).show()
         }
-        findViewById<Button>(R.id.compassButton).setOnClickListener {
-            val bearing = compassBearing
-            if (bearing != null) map.animateCamera(CameraUpdateFactory.bearingTo(bearing.toDouble()))
-            else Toast.makeText(this, "Compass is not available on this device.", Toast.LENGTH_SHORT).show()
-        }
 
         lifecycleScope.launch {
             controller.snapshot.collect { snapshot ->
@@ -152,24 +143,38 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun setupActivitySelectors() {
+    private fun setupActivityChooser() {
         val modes = ActivityMode.entries.toTypedArray()
-        activitySpinner.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, modes)
-        activitySpinner.setSelection(controller.currentActivity().ordinal)
-        activitySpinner.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
-            override fun onNothingSelected(parent: android.widget.AdapterView<*>?) = Unit
-            override fun onItemSelected(parent: android.widget.AdapterView<*>?, view: android.view.View?, position: Int, id: Long) {
-                val mode = modes[position]
-                if (mode == controller.currentActivity()) return
-                runCatching { controller.selectActivity(mode); populateTools(mode) }
-                    .onFailure { Toast.makeText(this@MainActivity, "Pause or stop tracking before switching activity.", Toast.LENGTH_SHORT).show(); activitySpinner.setSelection(controller.currentActivity().ordinal) }
-            }
+        activityButton.text = controller.currentActivity().title
+        activityButton.setOnClickListener {
+            AlertDialog.Builder(this).setTitle("Choose activity")
+                .setItems(modes.map { it.emoji + "  " + it.title }.toTypedArray()) { _, index ->
+                    val mode = modes[index]
+                    runCatching { controller.selectActivity(mode) }
+                        .onSuccess { activityButton.text = mode.title; updateUi(controller.snapshot.value) }
+                        .onFailure { Toast.makeText(this, "Pause or stop tracking before switching activity.", Toast.LENGTH_SHORT).show() }
+                }.show()
         }
-        populateTools(controller.currentActivity())
     }
 
-    private fun populateTools(mode: ActivityMode) {
-        toolSpinner.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, mode.tools)
+    private fun showToolsMenu() {
+        val items = arrayOf("Save waypoint", "Return to waypoint", "Orient to compass", "Official NL layers", "Official small-game rules")
+        AlertDialog.Builder(this).setTitle("Map tools").setItems(items) { _, index ->
+            when (index) {
+                0 -> saveWaypoint()
+                1 -> chooseReturnDestination()
+                2 -> { val bearing = compassBearing; if (bearing != null) map.animateCamera(CameraUpdateFactory.bearingTo(bearing.toDouble())) else Toast.makeText(this, "Compass is not available on this device.", Toast.LENGTH_SHORT).show() }
+                3 -> showOfficialLayers()
+                4 -> chooseOfficialSmallGameGuide()
+            }
+        }.show()
+    }
+
+    private fun toggleTrackingDetails() {
+        val details = findViewById<android.widget.LinearLayout>(R.id.trackingDetails)
+        val showing = details.visibility == android.view.View.VISIBLE
+        details.visibility = if (showing) android.view.View.GONE else android.view.View.VISIBLE
+        findViewById<Button>(R.id.trackingPanelToggle).text = if (showing) "Details" else "Hide"
     }
 
     private fun currentMapModeName(): String = when (mapMode) {

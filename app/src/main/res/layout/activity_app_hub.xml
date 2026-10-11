@@ -1,26 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent" android:layout_height="match_parent">
-    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:orientation="vertical" android:padding="20dp">
-        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:text="HuntMate Apps" android:textStyle="bold" android:textSize="26sp" />
-        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="Hunting &amp; Fishing is the main HuntMate app. Your records stay private on this device." />
-        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:layout_marginTop="24dp" android:text="Small Game Records" android:textStyle="bold" android:textSize="20sp" />
-        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:layout_marginTop="6dp" android:text="Log harvests, search past entries and export a CSV backup." />
-        <Button android:id="@+id/smallGameRecordsButton" android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:layout_marginTop="12dp" android:text="Open Small Game Records" />
-        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:layout_marginTop="24dp" android:text="HuntMate Outdoor" android:textStyle="bold" android:textSize="20sp" />
-        <TextView android:id="@+id/outdoorStatus" android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:layout_marginTop="6dp" android:text="Checking…" />
-        <Button android:id="@+id/outdoorButton" android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:layout_marginTop="12dp" android:text="Get HuntMate Outdoor" />
-        <Button android:id="@+id/closeHubButton" android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:layout_marginTop="24dp" android:text="Back to Hunting &amp; Fishing" />
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="match_parent" android:background="#101014">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="20dp">
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="HUNTMATE" android:textColor="#B8D99A" android:textSize="12sp" android:textStyle="bold"/>
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="3dp" android:text="Tools &amp; records" android:textColor="#F5F1F8" android:textSize="28sp" android:textStyle="bold"/>
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="Personal hunting tools that stay on this device." android:textColor="#B9B4BE"/>
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="20dp" android:background="@drawable/record_panel" android:orientation="vertical" android:padding="16dp">
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Small Game Records" android:textColor="#F5F1F8" android:textSize="20sp" android:textStyle="bold"/>
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="Log harvests, search your history and export a CSV backup." android:textColor="#CFC9D3"/>
+            <Button android:id="@+id/smallGameRecordsButton" android:layout_width="match_parent" android:layout_height="48dp" android:layout_marginTop="14dp" android:background="@drawable/action_primary" android:text="Open records" android:textAllCaps="false" android:textColor="#102016"/>
+        </LinearLayout>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="28dp" android:text="COMPANION APP" android:textColor="#9A949F" android:textSize="12sp" android:textStyle="bold"/>
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:background="@drawable/map_control_dark" android:orientation="vertical" android:padding="16dp">
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="HuntMate Outdoor" android:textColor="#F5F1F8" android:textSize="19sp" android:textStyle="bold"/>
+            <TextView android:id="@+id/outdoorStatus" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:textColor="#CFC9D3" android:text="Checking…"/>
+            <Button android:id="@+id/outdoorButton" android:layout_width="match_parent" android:layout_height="48dp" android:layout_marginTop="14dp" android:background="@drawable/action_secondary" android:text="Get HuntMate Outdoor" android:textAllCaps="false" android:textColor="#F5F1F8"/>
+        </LinearLayout>
+        <Button android:id="@+id/closeHubButton" style="?android:attr/borderlessButtonStyle" android:layout_width="match_parent" android:layout_height="52dp" android:layout_marginTop="18dp" android:text="Back to map" android:textAllCaps="false" android:textColor="#D7C3FF"/>
     </LinearLayout>
 </ScrollView>
