@@ -9,7 +9,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      HUNTMATE_KEYSTORE_FILE: ${{ runner.temp }}/huntmate-signing.jks
+      HUNTMATE_KEYSTORE_FILE: /tmp/huntmate-signing.jks
       HUNTMATE_KEYSTORE_PASSWORD: ${{ secrets.HUNTMATE_KEYSTORE_PASSWORD }}
       HUNTMATE_KEY_ALIAS: ${{ secrets.HUNTMATE_KEY_ALIAS }}
       HUNTMATE_KEY_PASSWORD: ${{ secrets.HUNTMATE_KEY_PASSWORD }}
