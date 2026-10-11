@@ -1,23 +1,202 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical">
-    <TextView android:id="@+id/appTitle" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="HUNTMATE" android:textStyle="bold" android:textSize="22sp" android:padding="16dp" />
-    <Spinner android:id="@+id/activitySpinner" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginStart="12dp" android:layout_marginEnd="12dp" android:contentDescription="Activity" />
-    <Spinner android:id="@+id/toolSpinner" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_margin="12dp" android:contentDescription="Activity tools" />
-    <Button android:id="@+id/appsButton" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginStart="12dp" android:layout_marginEnd="12dp" android:text="HuntMate Apps · Get Outdoor" />
-    <FrameLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1">
-        <org.maplibre.android.maps.MapView android:id="@+id/mapView" android:layout_width="match_parent" android:layout_height="match_parent" />
-        <TextView android:id="@+id/mapAttribution" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="bottom|end" android:layout_margin="8dp" android:background="#CCFFFFFF" android:padding="4dp" android:text="© OpenStreetMap contributors · ODbL" android:textSize="11sp" />
-    </FrameLayout>
-    <TextView android:id="@+id/statusText" android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingStart="16dp" android:paddingEnd="16dp" android:paddingTop="8dp" android:text="GPS ready" android:textStyle="bold" />
-    <TextView android:id="@+id/locationText" android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingStart="16dp" android:paddingEnd="16dp" android:text="Waiting for GPS…" />
-    <TextView android:id="@+id/statsText" android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingStart="16dp" android:paddingEnd="16dp" android:paddingBottom="8dp" android:text="Distance: 0 m" />
-    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:padding="8dp" android:orientation="horizontal">
-        <Button android:id="@+id/recenterButton" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="0.7" android:text="◎" android:contentDescription="Recenter on my location" />
-        <Button android:id="@+id/mapTypeButton" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Satellite" android:contentDescription="Toggle satellite map view" />
-        <Button android:id="@+id/compassButton" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="0.7" android:text="N" android:contentDescription="Orient map to compass heading" />
-        <Button android:id="@+id/startButton" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Start" />
-        <Button android:id="@+id/pauseButton" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Pause" />
-        <Button android:id="@+id/stopButton" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Stop" />
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#101014"
+    android:fitsSystemWindows="true">
+
+    <org.maplibre.android.maps.MapView
+        android:id="@+id/mapView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:layout_gravity="top"
+        android:gravity="center_vertical"
+        android:background="#E8101014"
+        android:paddingStart="20dp"
+        android:paddingEnd="12dp">
+
+        <TextView
+            android:id="@+id/appTitle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="HUNTMATE"
+            android:textColor="#F2EFF5"
+            android:textSize="20sp"
+            android:textStyle="bold" />
+
+        <Button
+            android:id="@+id/appsButton"
+            style="?android:attr/borderlessButtonStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="44dp"
+            android:minWidth="0dp"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp"
+            android:text="More"
+            android:textAllCaps="false"
+            android:textColor="#D7C3FF" />
     </LinearLayout>
-</LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:layout_gravity="top"
+        android:layout_marginTop="56dp"
+        android:layout_marginStart="12dp"
+        android:layout_marginEnd="12dp"
+        android:background="#E8101014"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp">
+
+        <Spinner
+            android:id="@+id/activitySpinner"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:contentDescription="Activity" />
+
+        <View
+            android:layout_width="1dp"
+            android:layout_height="24dp"
+            android:layout_gravity="center_vertical"
+            android:background="#4DFFFFFF" />
+
+        <Spinner
+            android:id="@+id/toolSpinner"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:contentDescription="Map tools" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="48dp"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|end"
+        android:layout_marginTop="120dp"
+        android:layout_marginEnd="12dp"
+        android:orientation="vertical">
+
+        <Button
+            android:id="@+id/recenterButton"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:minWidth="0dp"
+            android:contentDescription="Recenter on my location"
+            android:text="Locate"
+            android:textAllCaps="false"
+            android:textSize="10sp" />
+
+        <Button
+            android:id="@+id/mapTypeButton"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginTop="8dp"
+            android:minWidth="0dp"
+            android:contentDescription="Change map type"
+            android:text="Satellite"
+            android:textAllCaps="false"
+            android:textSize="10sp" />
+
+        <Button
+            android:id="@+id/compassButton"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginTop="8dp"
+            android:minWidth="0dp"
+            android:contentDescription="Orient map to compass heading"
+            android:text="North"
+            android:textAllCaps="false"
+            android:textSize="10sp" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/mapAttribution"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end"
+        android:layout_marginEnd="8dp"
+        android:layout_marginBottom="196dp"
+        android:background="#CCFFFFFF"
+        android:padding="4dp"
+        android:text="OpenStreetMap contributors - ODbL"
+        android:textColor="#303030"
+        android:textSize="10sp" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="184dp"
+        android:layout_gravity="bottom"
+        android:orientation="vertical"
+        android:background="#F5101014"
+        android:paddingStart="20dp"
+        android:paddingTop="12dp"
+        android:paddingEnd="20dp"
+        android:paddingBottom="8dp">
+
+        <TextView
+            android:id="@+id/statusText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="#F2EFF5"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/locationText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:textColor="#D0CBD5"
+            android:textSize="14sp" />
+
+        <TextView
+            android:id="@+id/statsText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="#D0CBD5"
+            android:textSize="14sp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:gravity="bottom|center_vertical"
+            android:paddingTop="8dp">
+
+            <Button
+                android:id="@+id/startButton"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:minWidth="0dp"
+                android:text="Start"
+                android:textAllCaps="false" />
+
+            <Button
+                android:id="@+id/pauseButton"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_marginStart="8dp"
+                android:layout_weight="1"
+                android:minWidth="0dp"
+                android:text="Pause"
+                android:textAllCaps="false" />
+
+            <Button
+                android:id="@+id/stopButton"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_marginStart="8dp"
+                android:layout_weight="1"
+                android:minWidth="0dp"
+                android:text="Stop"
+                android:textAllCaps="false" />
+        </LinearLayout>
+    </LinearLayout>
+</FrameLayout>
