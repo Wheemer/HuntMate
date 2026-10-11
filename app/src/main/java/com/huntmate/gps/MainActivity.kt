@@ -38,6 +38,7 @@ import org.maplibre.android.maps.MapLibreMap
 import org.maplibre.android.maps.MapView
 import org.maplibre.android.maps.Style
 import org.maplibre.android.style.layers.CircleLayer
+import org.maplibre.android.style.layers.FillLayer
 import org.maplibre.android.style.layers.LineLayer
 import org.maplibre.android.style.layers.SymbolLayer
 import org.maplibre.android.style.layers.PropertyFactory
@@ -54,6 +55,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var mapView: MapView
     private lateinit var map: MapLibreMap
     private lateinit var controller: HuntMateGpsController
+    private lateinit var mapDataRepository: MapDataRepository
     private lateinit var activitySpinner: Spinner
     private lateinit var toolSpinner: Spinner
     private var mapReady = false
@@ -66,6 +68,11 @@ class MainActivity : AppCompatActivity() {
     private var lastDirectionLocation: Location? = null
     private val savedPlaces = mutableListOf<SavedPlace>()
     private var navigationTarget: SavedPlace? = null
+    private val officialLayerVisibility = linkedMapOf(
+        "nl-protected-areas" to false, "nl-moose-zones" to false,
+        "nl-caribou-zones" to false, "nl-bear-zones" to false
+    )
+    private data class OfficialLayer(val id: String, val title: String, val url: String, val fill: String, val outline: String)
 
     private data class SavedPlace(val name: String, val latitude: Double, val longitude: Double)
 
@@ -91,6 +98,7 @@ class MainActivity : AppCompatActivity() {
         configureMapNetworking()
         setContentView(R.layout.activity_main)
         mapView = findViewById(R.id.mapView)
+        mapDataRepository = MapDataRepository(this)
         controller = HuntMateGpsController(this)
         loadSavedPlaces()
         sensorManager = getSystemService(SENSOR_SERVICE) as SensorManager
@@ -101,6 +109,7 @@ class MainActivity : AppCompatActivity() {
         findViewById<Button>(R.id.appsButton).setOnClickListener { startActivity(Intent(this, AppHubActivity::class.java)) }
         findViewById<Button>(R.id.saveWaypointButton).setOnClickListener { saveWaypoint() }
         findViewById<Button>(R.id.returnButton).setOnClickListener { chooseReturnDestination() }
+        findViewById<Button>(R.id.officialLayersButton).setOnClickListener { showOfficialLayers() }
 
         if (Build.VERSION.SDK_INT >= 33 && ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
             notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
@@ -240,6 +249,7 @@ class MainActivity : AppCompatActivity() {
             PropertyFactory.circleStrokeColor("#FFFFFF"), PropertyFactory.circleStrokeWidth(2f)
         ))
         drawSavedPlaces()
+        setupOfficialLayers(style)
         drawTrack(controller.snapshot.value)
     }
 
@@ -264,6 +274,45 @@ class MainActivity : AppCompatActivity() {
         paint.strokeWidth = 3f
         canvas.drawPath(arrow, paint)
         return bitmap
+    }
+
+    private fun officialLayers(): List<OfficialLayer> = listOf(
+        OfficialLayer("nl-protected-areas", "Protected Areas Plan", "https://dnrmaps.gov.nl.ca/arcgis/rest/services/GeoAtlas/Land_Use/MapServer/0/query?where=1%3D1&outFields=*&returnGeometry=true&outSR=4326&f=geoJSON", "#795548", "#5D4037"),
+        OfficialLayer("nl-moose-zones", "Moose management areas", "https://services8.arcgis.com/aCyQID5qQcyrJMm2/arcgis/rest/services/WLD_BigGameManagementArea/FeatureServer/0/query?where=1%3D1&outFields=*&returnGeometry=true&outSR=4326&f=geoJSON&maxAllowableOffset=0.0001", "#D6A900", "#8D6E00"),
+        OfficialLayer("nl-caribou-zones", "Caribou management areas", "https://services8.arcgis.com/aCyQID5qQcyrJMm2/arcgis/rest/services/WLD_BigGameManagementArea/FeatureServer/1/query?where=1%3D1&outFields=*&returnGeometry=true&outSR=4326&f=geoJSON&maxAllowableOffset=0.0001", "#2E7D32", "#1B5E20"),
+        OfficialLayer("nl-bear-zones", "Black bear management areas", "https://services8.arcgis.com/aCyQID5qQcyrJMm2/arcgis/rest/services/WLD_BigGameManagementArea/FeatureServer/2/query?where=1%3D1&outFields=*&returnGeometry=true&outSR=4326&f=geoJSON&maxAllowableOffset=0.0001", "#6A1B9A", "#4A148C")
+    )
+    private fun showOfficialLayers() {
+        val layers = officialLayers()
+        val selected = layers.map { officialLayerVisibility[it.id] == true }.toBooleanArray()
+        AlertDialog.Builder(this).setTitle("Official NL map layers")
+            .setMultiChoiceItems(layers.map { it.title }.toTypedArray(), selected) { _, index, checked -> officialLayerVisibility[layers[index].id] = checked }
+            .setPositiveButton("Apply") { _, _ -> applyMapStyle(); Toast.makeText(this, "Official layers updated. Data is cached on this phone for up to seven days.", Toast.LENGTH_LONG).show() }
+            .setNeutralButton("Sources & notes") { _, _ -> showOfficialDataNotes() }
+            .setNegativeButton("Cancel", null).show()
+    }
+    private fun showOfficialDataNotes() {
+        AlertDialog.Builder(this).setTitle("Official data sources").setMessage(
+            "GeoAtlas land-use layer: Government of Newfoundland and Labrador.\n\n" +
+            "Management-area layers: NL Wildlife Division, Department of Forestry, Agriculture and Lands.\n\n" +
+            "These are reference layers, not legal determinations. Seasons, licences, emergency closures, access permissions and municipal restrictions can change. Check the current NL Hunting and Trapping Guide before hunting.\n\n" +
+            "GeoAtlas:\nhttps://dnrmaps.gov.nl.ca/arcgis/rest/services/GeoAtlas/Land_Use/MapServer\n\nHunting guide:\nhttps://www.gov.nl.ca/hunting-trapping-guide/"
+        ).setPositiveButton("Close", null).show()
+    }
+    private fun setupOfficialLayers(style: Style) {
+        officialLayers().filter { officialLayerVisibility[it.id] == true }.forEach { layer ->
+            val sourceId = layer.id + "-source"
+            style.addSource(GeoJsonSource(sourceId, FeatureCollection.fromFeatures(arrayOf())))
+            style.addLayer(FillLayer(layer.id + "-fill", sourceId).withProperties(PropertyFactory.fillColor(layer.fill), PropertyFactory.fillOpacity(0.18f)))
+            style.addLayer(LineLayer(layer.id + "-line", sourceId).withProperties(PropertyFactory.lineColor(layer.outline), PropertyFactory.lineWidth(2f), PropertyFactory.lineOpacity(0.9f)))
+            mapDataRepository.load(layer.id, layer.url) { result ->
+                runOnUiThread {
+                    if (map.style !== style) return@runOnUiThread
+                    result.geoJson?.let { style.getSourceAs<GeoJsonSource>(sourceId)?.setGeoJson(it) }
+                    if (result.error != null && result.geoJson == null) Toast.makeText(this, layer.title + ": " + result.error, Toast.LENGTH_LONG).show()
+                }
+            }
+        }
     }
 
     private fun drawTrack(snapshot: TrackingSnapshot) {
