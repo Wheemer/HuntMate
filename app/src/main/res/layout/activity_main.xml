@@ -113,6 +113,28 @@
             android:text="North"
             android:textAllCaps="false"
             android:textSize="10sp" />
+
+        <Button
+            android:id="@+id/saveWaypointButton"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginTop="8dp"
+            android:minWidth="0dp"
+            android:contentDescription="Save current location as a waypoint"
+            android:text="Save"
+            android:textAllCaps="false"
+            android:textSize="10sp" />
+
+        <Button
+            android:id="@+id/returnButton"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginTop="8dp"
+            android:minWidth="0dp"
+            android:contentDescription="Choose a saved location for return guidance"
+            android:text="Return"
+            android:textAllCaps="false"
+            android:textSize="9sp" />
     </LinearLayout>
 
     <TextView
@@ -121,7 +143,7 @@
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|end"
         android:layout_marginEnd="8dp"
-        android:layout_marginBottom="196dp"
+        android:layout_marginBottom="228dp"
         android:background="#CCFFFFFF"
         android:padding="4dp"
         android:text="OpenStreetMap contributors - ODbL"
@@ -130,7 +152,7 @@
 
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="184dp"
+        android:layout_height="216dp"
         android:layout_gravity="bottom"
         android:orientation="vertical"
         android:background="#F5101014"
@@ -161,6 +183,14 @@
             android:layout_height="wrap_content"
             android:textColor="#D0CBD5"
             android:textSize="14sp" />
+
+        <TextView
+            android:id="@+id/navigationText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Save a truck, camp or waypoint for return guidance"
+            android:textColor="#D0CBD5"
+            android:textSize="12sp" />
 
         <LinearLayout
             android:layout_width="match_parent"
