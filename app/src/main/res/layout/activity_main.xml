@@ -129,9 +129,7 @@
                 app:icon="@drawable/ic_my_location"
                 app:iconGravity="textStart"
                 app:iconSize="24dp"
-                app:iconTint="#246B45"
-                app:insetTop="0dp"
-                app:insetBottom="0dp" />
+                app:iconTint="#246B45" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/mapTypeButton"
@@ -160,9 +158,7 @@
                 app:icon="@drawable/ic_compass"
                 app:iconGravity="textStart"
                 app:iconSize="24dp"
-                app:iconTint="#246B45"
-                app:insetTop="0dp"
-                app:insetBottom="0dp" />
+                app:iconTint="#246B45" />
         </LinearLayout>
 
         <LinearLayout
