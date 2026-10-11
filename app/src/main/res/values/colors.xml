@@ -1,1 +1,4 @@
-<resources><color name="hm_green">#2E7D32</color></resources>
+<resources>
+    <color name="hm_green">#2E7D32</color>
+    <color name="hm_icon_background">#14251B</color>
+</resources>
