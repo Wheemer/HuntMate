@@ -113,3 +113,13 @@ A feature is not complete just because the screen exists. Verify that:
 ## 7. Instructions to the implementing AI
 
 Treat this file as the owner's product requirements for **the entire HuntMate NL app**, not just the GPS feature. First inspect the repository and compare the current implementation with these requirements. Do not claim unimplemented items are done. Work in small, reviewable changes, protect existing functionality, run appropriate tests, and report blockers instead of inventing data or hiding failures. Ask the owner only when a decision cannot be resolved safely from the existing app or authoritative sources.
+
+
+## 8. Additional owner-specific requirements to preserve
+
+- **Coloured map overlays:** Use clear, distinguishable coloured boundary shading for hunting areas and relevant map layers. Keep the legend understandable and ensure shading does not obscure roads, GPS position, or map details.
+- **GPS accuracy indicator:** Preserve the blue GPS-accuracy/accuracy-radius shading around the current location where that feature is part of the existing map design. Do not remove it during unrelated map changes; make its meaning clear and update it with the actual location accuracy.
+- **Waypoints:** The project has a `feature/premium-waypoints` branch and waypoints are part of the development context. Inspect the existing implementation and determine exactly what is already built before changing it. Preserve working waypoint functionality, and document any premium/paid gating clearly if it exists. Do not invent a subscription or payment system if one has not been specified.
+- **Map-layer regression protection:** Test every layer toggle and combinations of layers after changes. The selected layer must match what is displayed, and a failed/empty dataset must not be represented as a valid boundary.
+- **Project scope separation:** These requirements apply to the HuntMate GPS mapping and hunting/fishing companion app in this repository. Do not change a separate “Small Game Records NL” app/repository as part of HuntMate work.
+- **No destructive shortcuts:** Do not roll back or remove working map features just to fix another issue. Inspect the relevant history/branch and make a focused fix; preserve the GPS-accuracy shading and existing functionality unless a change is specifically required and justified.
