@@ -13,7 +13,6 @@ android {
     namespace = "com.huntmate.gps"
     compileSdk = 37
 
-    buildFeatures { buildConfig = true }
 
     defaultConfig {
         applicationId = "com.huntmate.gps"
@@ -21,8 +20,6 @@ android {
         targetSdk = 37
         versionCode = 3
         versionName = "1.5.0"
-        val outdoorDownloadUrl = providers.gradleProperty("huntmateOutdoorDownloadUrl").orNull ?: ""
-        buildConfigField("String", "OUTDOOR_DOWNLOAD_URL", "\"$outdoorDownloadUrl\"")
     }
 
     signingConfigs {
