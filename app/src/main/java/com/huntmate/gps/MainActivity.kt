@@ -16,6 +16,7 @@ import android.os.Build
 import android.os.Bundle
 import android.content.Intent
 import android.net.Uri
+import java.net.URI
 import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.EditText
@@ -100,12 +101,12 @@ class MainActivity : AppCompatActivity() {
             landRestrictionsEnabled = !landRestrictionsEnabled
             findViewById<Button>(R.id.landRestrictionsButton).text =
                 if (landRestrictionsEnabled) "Land Layers ON" else "Land Layers OFF"
-            map.style?.getLayerAs<RasterLayer>("government-land-use-layer")?.setProperties(
-                PropertyFactory.visibility(if (landRestrictionsEnabled) Property.VISIBLE else Property.NONE)
-            )
-            if (landRestrictionsEnabled) {
-                Toast.makeText(this, "Showing government land-use restrictions. Check official hunting rules before hunting.", Toast.LENGTH_LONG).show()
-            }
+            setGovernmentLayersVisibility(landRestrictionsEnabled)
+            Toast.makeText(
+                this,
+                if (landRestrictionsEnabled) "Government boundary layers shown. Red areas are protected-area data, not a complete legal closure map; verify the official rules." else "Government boundary layers hidden.",
+                Toast.LENGTH_LONG
+            ).show()
         }
         findViewById<Button>(R.id.saveWaypointButton).setOnClickListener { saveWaypoint() }
         findViewById<Button>(R.id.returnButton).setOnClickListener { chooseReturnDestination() }
@@ -219,18 +220,17 @@ class MainActivity : AppCompatActivity() {
     private fun setupLayers() {
         mapReady = true
         val style = map.style ?: return
-        // Live official NL GeoAtlas land-use overlay. This is online data, not an offline map.
-        // Includes protected areas, specified material lands, Labrador Inuit Lands/Settlement
-        // Area, public water supplies, municipal boundaries, planning areas and wind-energy reserve.
-        style.addSource(RasterSource(
-            "government-land-use-source",
-            "https://dnrmaps.gov.nl.ca/arcgis/rest/services/GeoAtlas/Land_Use/MapServer/export?bbox={bbox-epsg-3857}&bboxSR=3857&imageSR=3857&size=256,256&format=png32&transparent=true&layers=show:0,1,2,3,4,5,6,7,8&f=image",
-            256
-        ))
-        style.addLayer(RasterLayer("government-land-use-layer", "government-land-use-source").withProperties(
-            PropertyFactory.rasterOpacity(0.58f),
-            PropertyFactory.visibility(if (landRestrictionsEnabled) Property.VISIBLE else Property.NONE)
-        ))
+        // Use actual ArcGIS GeoJSON queries, not an export image masquerading as an XYZ tile source.
+        // The old RasterSource used a bbox export URL that MapLibre could not request as a tile pyramid.
+        // Protected-area polygons are NOT a complete hunting-closure dataset; hunting rules have exceptions.
+        addGovernmentGeoJsonLayer(style, "hm-protected-plan", 0, "#D32F2F", 0.24f, "#E53935", 2.5f)
+        addGovernmentGeoJsonLayer(style, "hm-protected-conserved", 4, "#F57C00", 0.16f, "#EF6C00", 2.0f)
+        addGovernmentGeoJsonLayer(style, "hm-water-supply", 5, "#1976D2", 0.20f, "#42A5F5", 2.0f)
+        addGovernmentGeoJsonLayer(style, "hm-inuit-lands", 2, "#7E57C2", 0.13f, "#9575CD", 2.0f)
+        addGovernmentGeoJsonLayer(style, "hm-inuit-settlement", 3, "#00897B", 0.10f, "#26A69A", 2.0f)
+        addGovernmentGeoJsonLayer(style, "hm-municipal-boundaries", 6, null, 0f, "#FDD835", 1.6f)
+        addGovernmentGeoJsonLayer(style, "hm-planning-areas", 7, null, 0f, "#FFFFFF", 1.1f)
+        addGovernmentGeoJsonLayer(style, "hm-wind-reserve", 8, "#C2185B", 0.10f, "#EC407A", 2.0f)
         style.addSource(GeoJsonSource("huntmate-track-source", FeatureCollection.fromFeatures(arrayOf())))
         style.addSource(GeoJsonSource("huntmate-location-source", FeatureCollection.fromFeatures(arrayOf())))
         style.addSource(GeoJsonSource("huntmate-accuracy-source", FeatureCollection.fromFeatures(arrayOf())))
@@ -267,6 +267,62 @@ class MainActivity : AppCompatActivity() {
         // because the dot hides the arrowhead and makes heading hard to read.
         drawSavedPlaces()
         drawTrack(controller.snapshot.value)
+    }
+
+    /**
+     * Loads real feature geometry from the provincial ArcGIS REST query API.
+     */
+    private fun addGovernmentGeoJsonLayer(
+        style: Style,
+        id: String,
+        layerIndex: Int,
+        fill: String?,
+        fillOpacity: Float,
+        outline: String,
+        lineWidth: Float
+    ) {
+        val sourceId = "$id-source"
+        val url = "https://dnrmaps.gov.nl.ca/arcgis/rest/services/GeoAtlas/Land_Use/MapServer/$layerIndex/query" +
+            "?where=1%3D1&outFields=*&returnGeometry=true&outSR=4326&f=geoJSON"
+        runCatching {
+            style.addSource(GeoJsonSource(sourceId, URI(url)))
+            if (fill != null) {
+                style.addLayer(
+                    org.maplibre.android.style.layers.FillLayer("$id-fill", sourceId).withProperties(
+                        PropertyFactory.fillColor(fill),
+                        PropertyFactory.fillOpacity(fillOpacity),
+                        PropertyFactory.fillOutlineColor(outline),
+                        PropertyFactory.visibility(if (landRestrictionsEnabled) Property.VISIBLE else Property.NONE)
+                    )
+                )
+            }
+            style.addLayer(
+                LineLayer("$id-line", sourceId).withProperties(
+                    PropertyFactory.lineColor(outline),
+                    PropertyFactory.lineWidth(lineWidth),
+                    PropertyFactory.lineOpacity(0.95f),
+                    PropertyFactory.visibility(if (landRestrictionsEnabled) Property.VISIBLE else Property.NONE)
+                )
+            )
+        }.onFailure {
+            android.util.Log.e("HuntMateMap", "Could not add official GeoAtlas layer $layerIndex ($id)", it)
+        }
+    }
+
+    private fun setGovernmentLayersVisibility(visible: Boolean) {
+        val visibility = if (visible) Property.VISIBLE else Property.NONE
+        val style = map.style ?: return
+        listOf(
+            "hm-protected-plan-fill", "hm-protected-plan-line",
+            "hm-protected-conserved-fill", "hm-protected-conserved-line",
+            "hm-water-supply-fill", "hm-water-supply-line",
+            "hm-inuit-lands-fill", "hm-inuit-lands-line",
+            "hm-inuit-settlement-fill", "hm-inuit-settlement-line",
+            "hm-municipal-boundaries-line", "hm-planning-areas-line",
+            "hm-wind-reserve-fill", "hm-wind-reserve-line"
+        ).forEach { id ->
+            style.getLayer(id)?.setProperties(PropertyFactory.visibility(visibility))
+        }
     }
 
     private fun createDirectionArrowBitmap(): Bitmap {
