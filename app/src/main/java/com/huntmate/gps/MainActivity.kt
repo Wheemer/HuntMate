@@ -69,7 +69,6 @@ class MainActivity : AppCompatActivity() {
     private lateinit var activitySpinner: Spinner
     private lateinit var toolSpinner: Spinner
     private var mapReady = false
-    private var landRestrictionsEnabled = true
     private val landLayerVisibility = mutableMapOf(
         "hm-protected-plan" to true, "hm-specified-material" to true,
         "hm-inuit-lands" to true, "hm-inuit-settlement" to true,
@@ -80,6 +79,35 @@ class MainActivity : AppCompatActivity() {
     private val huntingLayerVisibility = mutableMapOf(
         "hm-moose-zones" to true, "hm-caribou-zones" to true, "hm-bear-zones" to true
     )
+
+    /** Layer on/off state persists across basemap switches, recreation, and app restarts. */
+    private fun layerPrefs() = getSharedPreferences("huntmate_layers", MODE_PRIVATE)
+
+    private fun loadLayerVisibility() {
+        val prefs = layerPrefs()
+        landLayerVisibility.keys.toList().forEach { key ->
+            landLayerVisibility[key] = prefs.getBoolean("land_$key", true)
+        }
+        huntingLayerVisibility.keys.toList().forEach { key ->
+            huntingLayerVisibility[key] = prefs.getBoolean("hunt_$key", true)
+        }
+    }
+
+    private fun saveLayerVisibility() {
+        val editor = layerPrefs().edit()
+        landLayerVisibility.forEach { (key, value) -> editor.putBoolean("land_$key", value) }
+        huntingLayerVisibility.forEach { (key, value) -> editor.putBoolean("hunt_$key", value) }
+        editor.apply()
+    }
+
+    private fun layerRowSuffix(key: String): String {
+        if (mapLayerErrors[key] != null) return " — UNAVAILABLE/STALE"
+        val fetched = mapLayerFetchedAt[key] ?: return ""
+        val date = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.CANADA).apply {
+            timeZone = java.util.TimeZone.getTimeZone("UTC")
+        }.format(java.util.Date(fetched))
+        return " · updated $date"
+    }
     // Keep the initial map stable until the user explicitly recenters on GPS.
     private var followLocation = false
     private var mapMode = 0 // 0 = OpenStreetMap, 1 = satellite, 2 = topographic, 3 = hybrid satellite
@@ -108,6 +136,7 @@ class MainActivity : AppCompatActivity() {
         controller = HuntMateGpsController(this)
         mapDataRepository = MapDataRepository(this)
         loadSavedPlaces()
+        loadLayerVisibility()
         sensorManager = getSystemService(SENSOR_SERVICE) as SensorManager
         rotationSensor = sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)
         activitySpinner = findViewById(R.id.activitySpinner)
@@ -135,6 +164,8 @@ class MainActivity : AppCompatActivity() {
             map.addOnCameraMoveStartedListener { reason ->
                 if (reason == MapLibreMap.OnCameraMoveStartedListener.REASON_API_GESTURE) followLocation = false
             }
+            // Tapping a boundary polygon shows its name, source, type, and verified restrictions.
+            map.addOnMapClickListener { point -> onMapTap(point); true }
             applyMapStyle()
         }
 
@@ -236,7 +267,9 @@ class MainActivity : AppCompatActivity() {
         // Use actual ArcGIS GeoJSON queries, not an export image masquerading as an XYZ tile source.
         // The old RasterSource used a bbox export URL that MapLibre could not request as a tile pyramid.
         // Protected-area polygons are NOT a complete hunting-closure dataset; hunting rules have exceptions.
-        addGovernmentGeoJsonLayer(style, "hm-protected-plan", 0, "#D32F2F", 0.24f, "#E53935", 2.5f)
+        // Protected Areas Plan 2020 uses brown — deliberately NOT the red reserved for
+        // CLOSED caribou zones, so a planning polygon can never read as a hunting closure.
+        addGovernmentGeoJsonLayer(style, "hm-protected-plan", 0, "#795548", 0.24f, "#5D4037", 2.5f)
         addHuntingZoneLayer(style, "hm-moose-zones", 0, "#D6A900", "#8D6E00")
         addHuntingZoneLayer(style, "hm-caribou-zones", 1, "#2E7D32", "#1B5E20", true)
         addHuntingZoneLayer(style, "hm-bear-zones", 2, "#6A1B9A", "#4A148C")
@@ -316,7 +349,7 @@ class MainActivity : AppCompatActivity() {
                         PropertyFactory.fillColor(fill),
                         PropertyFactory.fillOpacity(fillOpacity),
                         PropertyFactory.fillOutlineColor(outline),
-                        PropertyFactory.visibility(if (landRestrictionsEnabled && landLayerVisibility[id] != false) Property.VISIBLE else Property.NONE)
+                        PropertyFactory.visibility(if (landLayerVisibility[id] != false) Property.VISIBLE else Property.NONE)
                     )
                 )
             }
@@ -325,7 +358,7 @@ class MainActivity : AppCompatActivity() {
                     PropertyFactory.lineColor(outline),
                     PropertyFactory.lineWidth(lineWidth),
                     PropertyFactory.lineOpacity(0.95f),
-                    PropertyFactory.visibility(if (landRestrictionsEnabled && landLayerVisibility[id] != false) Property.VISIBLE else Property.NONE)
+                    PropertyFactory.visibility(if (landLayerVisibility[id] != false) Property.VISIBLE else Property.NONE)
                 )
             )
         }.onFailure {
@@ -442,6 +475,7 @@ class MainActivity : AppCompatActivity() {
         heading("BASEMAP")
         val radioGroup = android.widget.RadioGroup(this).apply { orientation = android.widget.RadioGroup.VERTICAL }
         val baseNames = listOf("Regular road map", "Satellite", "Topographic", "Hybrid satellite")
+        val baseShortNames = listOf("Map", "Satellite", "Topo", "Hybrid")
         baseNames.forEachIndexed { index, label ->
             radioGroup.addView(android.widget.RadioButton(this).apply {
                 id = 8000 + index; text = label; isChecked = mapMode == index
@@ -451,7 +485,7 @@ class MainActivity : AppCompatActivity() {
             val selected = checkedId - 8000
             if (selected in 0..3 && selected != mapMode) {
                 mapMode = selected
-                findViewById<Button>(R.id.mapTypeButton).text = baseNames[selected]
+                findViewById<Button>(R.id.mapTypeButton).text = baseShortNames[selected]
                 applyMapStyle()
             }
         }
@@ -463,16 +497,17 @@ class MainActivity : AppCompatActivity() {
             "Black bear management areas" to "hm-bear-zones"
         ).forEach { (label, key) ->
             content.addView(android.widget.CheckBox(this).apply {
-                text = label + (mapLayerErrors[key]?.let { " — UNAVAILABLE/STALE" } ?: ""); isChecked = huntingLayerVisibility[key] ?: true
+                text = label + layerRowSuffix(key); isChecked = huntingLayerVisibility[key] ?: true
                 setOnCheckedChangeListener { _, checked ->
                     huntingLayerVisibility[key] = checked
+                    saveLayerVisibility()
                     setLayerGroupVisibility(key, checked)
                 }
             })
         }
         heading("LAND AND GOVERNMENT BOUNDARIES")
-        listOf(
-            "Protected Areas Plan — planning data" to "hm-protected-plan",
+        val landEntries = listOf(
+            "Protected Areas Plan 2020 (planning — island only, not a closure)" to "hm-protected-plan",
             "Specified Material Lands" to "hm-specified-material",
             "Labrador Inuit Lands" to "hm-inuit-lands",
             "Labrador Inuit Settlement Areas" to "hm-inuit-settlement",
@@ -481,13 +516,29 @@ class MainActivity : AppCompatActivity() {
             "Municipal Boundaries — boundary only" to "hm-municipal-boundaries",
             "Planning Areas — boundary only" to "hm-planning-areas",
             "Wind Energy Land Reserve" to "hm-wind-reserve"
-        ).forEach { (label, key) ->
-            content.addView(android.widget.CheckBox(this).apply {
-                text = label + (mapLayerErrors[key]?.let { " — UNAVAILABLE/STALE" } ?: ""); isChecked = landLayerVisibility[key] ?: true
-                setOnCheckedChangeListener { _, checked ->
+        )
+        val landCheckBoxes = mutableListOf<android.widget.CheckBox>()
+        content.addView(android.widget.CheckBox(this).apply {
+            text = "All land boundaries on/off"
+            isChecked = landEntries.all { landLayerVisibility[it.second] ?: true }
+            setOnCheckedChangeListener { _, checked ->
+                landEntries.forEach { (_, key) ->
                     landLayerVisibility[key] = checked
                     setLayerGroupVisibility(key, checked)
                 }
+                saveLayerVisibility()
+                landCheckBoxes.forEach { box -> if (box.isChecked != checked) box.isChecked = checked }
+            }
+        })
+        landEntries.forEach { (label, key) ->
+            content.addView(android.widget.CheckBox(this).apply {
+                text = label + layerRowSuffix(key); isChecked = landLayerVisibility[key] ?: true
+                setOnCheckedChangeListener { _, checked ->
+                    landLayerVisibility[key] = checked
+                    saveLayerVisibility()
+                    setLayerGroupVisibility(key, checked)
+                }
+                landCheckBoxes.add(this)
             })
         }
         heading("DATA UPDATES")
@@ -523,6 +574,92 @@ class MainActivity : AppCompatActivity() {
         Toast.makeText(this, "Refreshing official map data…", Toast.LENGTH_SHORT).show()
     }
 
+    /** Fill layers that can be tapped, topmost-rendered first. Line-only layers are skipped. */
+    private val tappableFillLayers = listOf(
+        "hm-wind-reserve" to "Wind Energy Land Reserve",
+        "hm-inuit-settlement" to "Labrador Inuit Settlement Areas",
+        "hm-inuit-lands" to "Labrador Inuit Lands",
+        "hm-water-supply" to "Public Water Supply Areas",
+        "hm-protected-conserved" to "Canadian Protected & Conserved Areas",
+        "hm-specified-material" to "Specified Material Lands",
+        "hm-bear-zones" to "Black Bear Management Areas",
+        "hm-caribou-zones" to "Caribou Management Areas",
+        "hm-moose-zones" to "Moose Management Areas",
+        "hm-protected-plan" to "Protected Areas Plan 2020"
+    )
+
+    private fun onMapTap(point: LatLng) {
+        val style = map.style ?: return
+        val pixel = map.projection.toScreenLocation(point)
+        for ((key, title) in tappableFillLayers) {
+            val layerId = "$key-fill"
+            val layer = style.getLayer(layerId) ?: continue
+            if (layer.visibility.value != Property.VISIBLE) continue
+            val features = runCatching { map.queryRenderedFeatures(pixel, layerId) }.getOrDefault(emptyList())
+            val feature = features.firstOrNull() ?: continue
+            showFeatureInfo(key, title, feature)
+            return
+        }
+    }
+
+    private fun datasetSource(key: String): String = when {
+        key.endsWith("-zones") -> "Wildlife Division, Dept. of Forestry, Agriculture and Lands (NL Open Government Licence)"
+        else -> "Government of Newfoundland and Labrador (GeoAtlas)"
+    }
+
+    /** Honest per-dataset type + restriction wording. Never implies a colour alone decides legality. */
+    private fun datasetNotes(key: String): Pair<String, String> = when (key) {
+        "hm-moose-zones" -> "Hunting management zone" to
+            "Moose management area boundary. Seasons, quotas and licence requirements come from the current NL Hunting and Trapping Guide — the boundary alone does not say whether or when hunting is allowed."
+        "hm-caribou-zones" -> "Hunting management zone" to
+            "Caribou management area. A CLOSED (red) zone is listed closed by the province. OPEN (green) or unknown-status (grey) does NOT by itself mean hunting is legal — check the current guide."
+        "hm-bear-zones" -> "Hunting management zone" to
+            "Black bear management area boundary. Check the current NL Hunting and Trapping Guide for seasons and rules."
+        "hm-protected-plan" -> "Planning data — NOT a closure" to
+            "Protected Areas Plan 2020: planning polygons for the island of Newfoundland only, boundaries not final. This is not a legal closure and does not determine whether hunting is allowed."
+        "hm-specified-material" -> "Land boundary" to
+            "Specified Material Lands (part of Labrador Inuit Lands). Access rules come from the Labrador Inuit Land Claims Agreement."
+        "hm-inuit-lands" -> "Land boundary" to
+            "Labrador Inuit Lands. Non-beneficiaries need permission from the Nunatsiavut Government to access."
+        "hm-inuit-settlement" -> "Land boundary" to
+            "Labrador Inuit Settlement Area boundary. Inuit harvesting rights apply; this line is not a general permission-to-hunt indicator."
+        "hm-protected-conserved" -> "Protected / conserved area" to
+            "Canadian Protected and Conserved Areas (CPCAD snapshot). Protected status alone does NOT mean hunting is prohibited — rules vary by site."
+        "hm-water-supply" -> "Land-use restriction" to
+            "Public water supply protection area. Zone 1 has activity prohibitions under the Water Resources Act — a land-use restriction, not a hunting closure per se."
+        "hm-wind-reserve" -> "Planning designation" to
+            "Wind Energy Land Reserve: a planning designation, not a closure."
+        else -> "Boundary data" to "Boundary maps are for reference only."
+    }
+
+    private fun showFeatureInfo(datasetKey: String, datasetTitle: String, feature: Feature) {
+        val props = feature.properties() ?: return
+        fun prop(vararg names: String): String? {
+            for (n in names) {
+                val e = props.get(n) ?: continue
+                if (e.isJsonNull) continue
+                val s = runCatching { e.asString }.getOrNull()?.trim() ?: continue
+                if (s.isNotEmpty() && !s.equals("null", ignoreCase = true)) return s
+            }
+            return null
+        }
+        val name = prop("mma_name", "NAME_E", "SOURCENAME", "AreaName", "name")
+        val zoneNo = prop("mma", "mmu", "bma")
+        val (type, notes) = datasetNotes(datasetKey)
+        val source = datasetSource(datasetKey)
+        val statusLine = if (datasetKey == "hm-caribou-zones") {
+            when (prop("status_ope")?.uppercase()) {
+                "CLOSED" -> "\nStatus: CLOSED — listed closed by the province."
+                "OPEN" -> "\nStatus: OPEN — check the current guide for seasons and licences."
+                else -> "\nStatus: unknown or not applicable (shown grey) — never assume open."
+            }
+        } else ""
+        val title = listOfNotNull(name, zoneNo?.let { "Zone $it" }).joinToString(" · ").ifBlank { datasetTitle }
+        val message = "$datasetTitle\nType: $type$statusLine\nSource: $source\n\n$notes\n\nBoundary maps are for reference only and are not legal documents."
+        AlertDialog.Builder(this).setTitle(title).setMessage(message)
+            .setPositiveButton("Close", null).show()
+    }
+
     private fun setLayerGroupVisibility(key: String, visible: Boolean) {
         val visibility = if (visible) Property.VISIBLE else Property.NONE
         val style = map.style ?: return
@@ -537,18 +674,24 @@ class MainActivity : AppCompatActivity() {
 
     private fun showDataSources() {
         val message = """
+            ATTRIBUTION
+            Protected areas: © Environment and Climate Change Canada (CPCAD), Open Government Licence – Canada. Provincial protected areas: Government of Newfoundland and Labrador, Dept. of Environment, Conservation and Climate Change. Hunting management areas: Wildlife Division, Dept. of Forestry, Agriculture and Lands, NL Open Government Licence. Land-use boundaries: Government of Newfoundland and Labrador (GeoAtlas).
+
+            LEGAL DISCLAIMER
+            Boundary maps are for reference only and are not legal documents. Hunting management zones, closed areas and restrictions change annually — consult the current Newfoundland and Labrador Hunting and Trapping Guide and the Wildlife Act and Regulations. Protected-area status alone does not determine whether hunting is permitted. Access to Labrador Inuit Lands requires permission from the Nunatsiavut Government for non-beneficiaries.
+
+            DATASETS
             Newfoundland and Labrador GeoAtlas Land Use MapServer:
             https://dnrmaps.gov.nl.ca/arcgis/rest/services/GeoAtlas/Land_Use/MapServer
 
-            Official WLD Big Game Management Areas:
+            Official WLD Big Game Management Areas (moose, caribou, black bear):
             https://services8.arcgis.com/aCyQID5qQcyrJMm2/arcgis/rest/services/WLD_BigGameManagementArea/FeatureServer
 
             Official provincial hunting boundaries and rules:
             https://www.gov.nl.ca/fal/public-education/wildlife/hunting/boundry/
 
-            Reidville–Deer Lake Closed Area: the 2026–27 guide says this area is closed to shooting. Use the official boundary description; HuntMate does not invent a polygon.
-
-            IMPORTANT: Government planning, municipal, protected-area and management-area layers are not by themselves a complete legal determination that hunting is allowed or prohibited. Confirm current regulations, land rights, bylaws and closures.
+            KNOWN GAPS (no published GIS — never approximated in this app)
+            Reidville–Deer Lake Closed Area: the 2026–27 guide lists this area as closed to shooting. Use the official boundary description at the link above; HuntMate does not draw an invented polygon. The same applies to the ~33 named Closed Areas, municipal firearm-discharge bylaws, season-specific/emergency closures, and T'Railway Provincial Park.
 
             Agency publication/update dates are not supplied by these query responses.
 
@@ -565,32 +708,44 @@ class MainActivity : AppCompatActivity() {
 
     private fun showMapLegend() {
         val legend = """
-            🔴 RED — Protected Areas Plan
-            Protected-area planning polygons. This is NOT a complete no-hunting/closed-area layer.
+            HUNTING MANAGEMENT AREAS (Wildlife Division)
+            🟡 GOLD — Moose management areas
+            🟣 PURPLE — Black bear management areas
+            🟢 GREEN — Caribou management area, listed OPEN
+            🔴 RED — Caribou management area, listed CLOSED
+            ⚫ GREY — Caribou management area, status unknown or not applicable
+            A CLOSED (red) caribou zone is listed closed by the province. OPEN (green) or grey does NOT by itself mean hunting is legal — always check the current NL Hunting and Trapping Guide for seasons, licences, and closures.
 
-            🟠 ORANGE — Conserved Areas
-            Canadian protected and conserved areas.
+            LAND AND GOVERNMENT BOUNDARIES
+            🟤 BROWN — Protected Areas Plan 2020
+            Planning polygons for the island of Newfoundland ONLY. Boundaries are not final. This is NOT a closure and does not determine whether hunting is allowed.
 
-            🔵 BLUE — Public Water Supplies
-            Public water-supply protection areas; check applicable access and activity rules.
+            🟠 ORANGE — Canadian Protected and Conserved Areas
+            CPCAD snapshot. Protected status alone does NOT mean hunting is prohibited — rules vary by site.
+
+            🔵 BLUE — Public Water Supply Areas
+            Water-supply protection areas. Zone 1 has activity prohibitions under the Water Resources Act — a land-use restriction, not a hunting closure per se.
 
             🟣 PURPLE — Labrador Inuit Lands
-            Labrador Inuit land boundaries; access and hunting rights can depend on land status and agreements.
+            Non-beneficiaries need Nunatsiavut Government permission to access.
 
             🟢 TEAL — Labrador Inuit Settlement Areas
-            Settlement-area boundaries; not a general permission-to-hunt indicator.
+            Settlement-area boundaries; Inuit harvesting rights apply. Not a general permission-to-hunt indicator.
 
-            🟡 YELLOW — Municipal Boundaries
-            Municipal limits only; the line does not itself mean hunting is prohibited.
+            🔘 GREY-BLUE — Specified Material Lands
+            Part of Labrador Inuit Lands (specified materials).
 
-            ⚪ WHITE — Planning Areas
-            Government planning boundaries.
+            🟡 YELLOW lines — Municipal Boundaries
+            Municipal limits only; the line does not itself mean hunting is prohibited. Municipal firearm bylaws have no published map.
+
+            ⚪ WHITE lines — Planning Areas
+            Government planning boundaries; not closures.
 
             🌺 PINK — Wind Energy Land Reserve
-            Wind-energy land-reserve boundaries.
+            Planning designation, not a closure.
 
             IMPORTANT
-            Hunting management zones and legally closed hunting areas are separate official datasets and are not all shown by these land layers. Do not use these colours alone to decide whether hunting is legal. Check the current NL hunting regulations and official boundary descriptions.
+            Hunting management zones and legally closed hunting areas are separate official datasets and are not all shown here. The ~33 named Closed Areas in the hunting guide (including Reidville–Deer Lake, closed to shooting) have no published GIS — see Data sources & legal notes. Do not use colours alone to decide whether hunting is legal.
         """.trimIndent()
         AlertDialog.Builder(this)
             .setTitle("Map colours & boundary legend")
@@ -600,23 +755,6 @@ class MainActivity : AppCompatActivity() {
             }
             .setNegativeButton("Close", null)
             .show()
-    }
-
-    private fun setGovernmentLayersVisibility(visible: Boolean) {
-        val visibility = if (visible) Property.VISIBLE else Property.NONE
-        val style = map.style ?: return
-        listOf(
-            "hm-protected-plan-fill", "hm-protected-plan-line",
-            "hm-specified-material-fill", "hm-specified-material-line",
-            "hm-protected-conserved-fill", "hm-protected-conserved-line",
-            "hm-water-supply-fill", "hm-water-supply-line",
-            "hm-inuit-lands-fill", "hm-inuit-lands-line",
-            "hm-inuit-settlement-fill", "hm-inuit-settlement-line",
-            "hm-municipal-boundaries-line", "hm-planning-areas-line",
-            "hm-wind-reserve-fill", "hm-wind-reserve-line"
-        ).forEach { id ->
-            style.getLayer(id)?.setProperties(PropertyFactory.visibility(visibility))
-        }
     }
 
     private fun createDirectionArrowBitmap(): Bitmap {
