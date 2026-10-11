@@ -71,7 +71,7 @@ class MainActivity : AppCompatActivity() {
     private val savedPlaces = mutableListOf<SavedPlace>()
     private var navigationTarget: SavedPlace? = null
     private val officialLayerVisibility = linkedMapOf(
-        "nl-protected-areas" to false, "nl-moose-zones" to false,
+        "nl-protected-areas" to false, "nl-closed-areas" to false, "nl-moose-zones" to false,
         "nl-caribou-zones" to false, "nl-bear-zones" to false
     )
     private data class OfficialLayer(val id: String, val title: String, val url: String, val fill: String, val outline: String)
@@ -280,6 +280,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun officialLayers(): List<OfficialLayer> = listOf(
         OfficialLayer("nl-protected-areas", "Protected Areas Plan", "https://dnrmaps.gov.nl.ca/arcgis/rest/services/GeoAtlas/Land_Use/MapServer/0/query?where=1%3D1&outFields=*&returnGeometry=true&outSR=4326&f=geoJSON", "#795548", "#5D4037"),
+        OfficialLayer("nl-closed-areas", "Closed areas (official 2022-23 map)", "https://services8.arcgis.com/aCyQID5qQcyrJMm2/arcgis/rest/services/Closed_Areas/FeatureServer/32/query?where=1%3D1&outFields=*&returnGeometry=true&outSR=4326&f=geoJSON&maxAllowableOffset=0.0001", "#C62828", "#8E0000"),
         OfficialLayer("nl-moose-zones", "Moose management areas", "https://services8.arcgis.com/aCyQID5qQcyrJMm2/arcgis/rest/services/WLD_BigGameManagementArea/FeatureServer/0/query?where=1%3D1&outFields=*&returnGeometry=true&outSR=4326&f=geoJSON&maxAllowableOffset=0.0001", "#D6A900", "#8D6E00"),
         OfficialLayer("nl-caribou-zones", "Caribou management areas", "https://services8.arcgis.com/aCyQID5qQcyrJMm2/arcgis/rest/services/WLD_BigGameManagementArea/FeatureServer/1/query?where=1%3D1&outFields=*&returnGeometry=true&outSR=4326&f=geoJSON&maxAllowableOffset=0.0001", "#2E7D32", "#1B5E20"),
         OfficialLayer("nl-bear-zones", "Black bear management areas", "https://services8.arcgis.com/aCyQID5qQcyrJMm2/arcgis/rest/services/WLD_BigGameManagementArea/FeatureServer/2/query?where=1%3D1&outFields=*&returnGeometry=true&outSR=4326&f=geoJSON&maxAllowableOffset=0.0001", "#6A1B9A", "#4A148C")
@@ -297,6 +298,7 @@ class MainActivity : AppCompatActivity() {
         AlertDialog.Builder(this).setTitle("Official data sources").setMessage(
             "GeoAtlas land-use layer: Government of Newfoundland and Labrador.\n\n" +
             "Management-area layers: NL Wildlife Division, Department of Forestry, Agriculture and Lands.\n\n" +
+            "Closed-area geometry: Government of Newfoundland and Labrador. The service metadata says it was last aligned with the 2022-23 guide; always check the current guide.\n\n" +
             "These are reference layers, not legal determinations. Seasons, licences, emergency closures, access permissions and municipal restrictions can change. Check the current NL Hunting and Trapping Guide before hunting.\n\n" +
             "GeoAtlas:\nhttps://dnrmaps.gov.nl.ca/arcgis/rest/services/GeoAtlas/Land_Use/MapServer\n\nHunting guide:\nhttps://www.gov.nl.ca/hunting-trapping-guide/"
         ).setNeutralButton("Small-game guide") { _, _ -> chooseOfficialSmallGameGuide() }.setPositiveButton("Close", null).show()
