@@ -220,7 +220,7 @@ class MainActivity : AppCompatActivity() {
             PropertyFactory.iconRotationAlignment("map"),
             PropertyFactory.iconAllowOverlap(true),
             PropertyFactory.iconIgnorePlacement(true),
-            PropertyFactory.iconSize(0.85f)
+            PropertyFactory.iconSize(1.0f)
         ))
         style.addLayer(CircleLayer("huntmate-saved-circles", "huntmate-saved-source").withProperties(
             PropertyFactory.circleColor("#6A3D9A"), PropertyFactory.circleRadius(6f),
@@ -232,10 +232,8 @@ class MainActivity : AppCompatActivity() {
             PropertyFactory.textHaloWidth(1f), PropertyFactory.textOffset(arrayOf(0f, 1.1f)),
             PropertyFactory.textAllowOverlap(false), PropertyFactory.textIgnorePlacement(false)
         ))
-        style.addLayer(CircleLayer("huntmate-location-dot", "huntmate-location-source").withProperties(
-            PropertyFactory.circleColor("#1565C0"), PropertyFactory.circleRadius(7f),
-            PropertyFactory.circleStrokeColor("#FFFFFF"), PropertyFactory.circleStrokeWidth(2f)
-        ))
+        // The directional arrow is the user's location marker. Do not draw a dot over it,
+        // because the dot hides the arrowhead and makes heading hard to read.
         drawSavedPlaces()
         drawTrack(controller.snapshot.value)
     }
