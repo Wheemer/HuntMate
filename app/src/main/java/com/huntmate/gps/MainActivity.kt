@@ -61,6 +61,16 @@ class MainActivity : AppCompatActivity() {
     private lateinit var toolSpinner: Spinner
     private var mapReady = false
     private var landRestrictionsEnabled = true
+    private val landLayerVisibility = mutableMapOf(
+        "hm-protected-plan" to true, "hm-specified-material" to true,
+        "hm-inuit-lands" to true, "hm-inuit-settlement" to true,
+        "hm-protected-conserved" to true, "hm-water-supply" to true,
+        "hm-municipal-boundaries" to true, "hm-planning-areas" to true,
+        "hm-wind-reserve" to true
+    )
+    private val huntingLayerVisibility = mutableMapOf(
+        "hm-moose-zones" to true, "hm-caribou-zones" to true, "hm-bear-zones" to true
+    )
     // Keep the initial map stable until the user explicitly recenters on GPS.
     private var followLocation = false
     private var mapMode = 0 // 0 = OpenStreetMap, 1 = satellite, 2 = topographic, 3 = hybrid satellite
@@ -94,27 +104,7 @@ class MainActivity : AppCompatActivity() {
         toolSpinner = findViewById(R.id.toolSpinner)
         setupActivitySelectors()
         findViewById<Button>(R.id.appsButton).setOnClickListener { startActivity(Intent(this, AppHubActivity::class.java)) }
-        findViewById<Button>(R.id.governmentZonesButton).setOnClickListener {
-            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://www.gov.nl.ca/fal/public-education/wildlife/hunting/boundry/")))
-        }
-        findViewById<Button>(R.id.landRestrictionsButton).setOnClickListener {
-            landRestrictionsEnabled = !landRestrictionsEnabled
-            findViewById<Button>(R.id.landRestrictionsButton).text =
-                if (landRestrictionsEnabled) "Land Layers ON" else "Land Layers OFF"
-            setGovernmentLayersVisibility(landRestrictionsEnabled)
-            Toast.makeText(
-                this,
-                if (landRestrictionsEnabled) "Government boundary layers shown. Red areas are protected-area data, not a complete legal closure map; verify the official rules." else "Government boundary layers hidden.",
-                Toast.LENGTH_LONG
-            ).show()
-        }
-        // Resolve by resource name so the build does not depend on a stale generated R.id entry.
-        val mapLegendId = resources.getIdentifier("mapLegendButton", "id", packageName)
-        if (mapLegendId != 0) {
-            findViewById<Button>(mapLegendId).setOnClickListener { showMapLegend() }
-        } else {
-            android.util.Log.e("HuntMate", "Map legend button ID is missing from activity_main")
-        }
+        findViewById<Button>(R.id.layersButton).setOnClickListener { showLayersMenu() }
 
         findViewById<Button>(R.id.saveWaypointButton).setOnClickListener { saveWaypoint() }
         findViewById<Button>(R.id.returnButton).setOnClickListener { chooseReturnDestination() }
@@ -232,6 +222,7 @@ class MainActivity : AppCompatActivity() {
         // The old RasterSource used a bbox export URL that MapLibre could not request as a tile pyramid.
         // Protected-area polygons are NOT a complete hunting-closure dataset; hunting rules have exceptions.
         addGovernmentGeoJsonLayer(style, "hm-protected-plan", 0, "#D32F2F", 0.24f, "#E53935", 2.5f)
+        addGovernmentGeoJsonLayer(style, "hm-specified-material", 1, "#607D8B", 0.12f, "#78909C", 1.8f)
         addGovernmentGeoJsonLayer(style, "hm-protected-conserved", 4, "#F57C00", 0.16f, "#EF6C00", 2.0f)
         addGovernmentGeoJsonLayer(style, "hm-water-supply", 5, "#1976D2", 0.20f, "#42A5F5", 2.0f)
         addGovernmentGeoJsonLayer(style, "hm-inuit-lands", 2, "#7E57C2", 0.13f, "#9575CD", 2.0f)
@@ -300,7 +291,7 @@ class MainActivity : AppCompatActivity() {
                         PropertyFactory.fillColor(fill),
                         PropertyFactory.fillOpacity(fillOpacity),
                         PropertyFactory.fillOutlineColor(outline),
-                        PropertyFactory.visibility(if (landRestrictionsEnabled) Property.VISIBLE else Property.NONE)
+                        PropertyFactory.visibility(if (landRestrictionsEnabled && landLayerVisibility[id] != false) Property.VISIBLE else Property.NONE)
                     )
                 )
             }
@@ -315,6 +306,115 @@ class MainActivity : AppCompatActivity() {
         }.onFailure {
             android.util.Log.e("HuntMateMap", "Could not add official GeoAtlas layer $layerIndex ($id)", it)
         }
+    }
+
+    private fun showLayersMenu() {
+        val content = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            setPadding(28, 12, 28, 8)
+        }
+        val scroll = android.widget.ScrollView(this).apply { addView(content) }
+        fun heading(label: String) {
+            content.addView(TextView(this).apply {
+                text = label; textSize = 16f
+                setTypeface(null, android.graphics.Typeface.BOLD)
+                setPadding(0, 14, 0, 4)
+            })
+        }
+        heading("BASEMAP")
+        val radioGroup = android.widget.RadioGroup(this).apply { orientation = android.widget.RadioGroup.VERTICAL }
+        val baseNames = listOf("Regular road map", "Satellite", "Topographic", "Hybrid satellite")
+        baseNames.forEachIndexed { index, label ->
+            radioGroup.addView(android.widget.RadioButton(this).apply {
+                id = 8000 + index; text = label; isChecked = mapMode == index
+            })
+        }
+        radioGroup.setOnCheckedChangeListener { _, checkedId ->
+            val selected = checkedId - 8000
+            if (selected in 0..3 && selected != mapMode) {
+                mapMode = selected
+                findViewById<Button>(R.id.mapTypeButton).text = baseNames[selected]
+                applyMapStyle()
+            }
+        }
+        content.addView(radioGroup)
+        heading("HUNTING MANAGEMENT AREAS")
+        listOf(
+            "Moose management areas" to "hm-moose-zones",
+            "Caribou management areas (CLOSED areas highlighted)" to "hm-caribou-zones",
+            "Black bear management areas" to "hm-bear-zones"
+        ).forEach { (label, key) ->
+            content.addView(android.widget.CheckBox(this).apply {
+                text = label; isChecked = huntingLayerVisibility[key] ?: true
+                setOnCheckedChangeListener { _, checked ->
+                    huntingLayerVisibility[key] = checked
+                    setLayerGroupVisibility(key, checked)
+                }
+            })
+        }
+        heading("LAND AND GOVERNMENT BOUNDARIES")
+        listOf(
+            "Protected Areas Plan — planning data" to "hm-protected-plan",
+            "Specified Material Lands" to "hm-specified-material",
+            "Labrador Inuit Lands" to "hm-inuit-lands",
+            "Labrador Inuit Settlement Areas" to "hm-inuit-settlement",
+            "Protected and Conserved Areas" to "hm-protected-conserved",
+            "Public Water Supply Areas" to "hm-water-supply",
+            "Municipal Boundaries — boundary only" to "hm-municipal-boundaries",
+            "Planning Areas — boundary only" to "hm-planning-areas",
+            "Wind Energy Land Reserve" to "hm-wind-reserve"
+        ).forEach { (label, key) ->
+            content.addView(android.widget.CheckBox(this).apply {
+                text = label; isChecked = landLayerVisibility[key] ?: true
+                setOnCheckedChangeListener { _, checked ->
+                    landLayerVisibility[key] = checked
+                    setLayerGroupVisibility(key, checked)
+                }
+            })
+        }
+        heading("INFORMATION")
+        content.addView(Button(this).apply {
+            text = "Map legend and colours"; setOnClickListener { showMapLegend() }
+        })
+        content.addView(Button(this).apply {
+            text = "Data sources, legal notes and update status"; setOnClickListener { showDataSources() }
+        })
+        AlertDialog.Builder(this).setTitle("Layers").setView(scroll).setPositiveButton("Done", null).show()
+    }
+
+    private fun setLayerGroupVisibility(key: String, visible: Boolean) {
+        val visibility = if (visible) Property.VISIBLE else Property.NONE
+        val style = map.style ?: return
+        val ids = when (key) {
+            "hm-moose-zones" -> listOf("hm-moose-zones-fill", "hm-moose-zones-line")
+            "hm-caribou-zones" -> listOf("hm-caribou-zones-fill", "hm-caribou-zones-line")
+            "hm-bear-zones" -> listOf("hm-bear-zones-fill", "hm-bear-zones-line")
+            else -> listOf("$key-fill", "$key-line")
+        }
+        ids.forEach { id -> style.getLayer(id)?.setProperties(PropertyFactory.visibility(visibility)) }
+    }
+
+    private fun showDataSources() {
+        val message = """
+            Newfoundland and Labrador GeoAtlas Land Use MapServer:
+            https://dnrmaps.gov.nl.ca/arcgis/rest/services/GeoAtlas/Land_Use/MapServer
+
+            Official WLD Big Game Management Areas:
+            https://services8.arcgis.com/aCyQID5qQcyrJMm2/arcgis/rest/services/WLD_BigGameManagementArea/FeatureServer
+
+            Official provincial hunting boundaries and rules:
+            https://www.gov.nl.ca/fal/public-education/wildlife/hunting/boundry/
+
+            Reidville–Deer Lake Closed Area: the 2026–27 guide says this area is closed to shooting. Use the official boundary description; HuntMate does not invent a polygon.
+
+            IMPORTANT: Government planning, municipal, protected-area and management-area layers are not by themselves a complete legal determination that hunting is allowed or prohibited. Confirm current regulations, land rights, bylaws and closures.
+
+            Agency publication/update dates are shown as unavailable until a source supplies a verifiable date. App fetch time and cache age must not be mistaken for the agency publication date.
+        """.trimIndent()
+        AlertDialog.Builder(this).setTitle("Data sources & legal notes").setMessage(message)
+            .setPositiveButton("Official hunting boundary page") { _, _ ->
+                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://www.gov.nl.ca/fal/public-education/wildlife/hunting/boundry/")))
+            }.setNegativeButton("Close", null).show()
     }
 
     private fun showMapLegend() {
@@ -360,7 +460,7 @@ class MainActivity : AppCompatActivity() {
         val visibility = if (visible) Property.VISIBLE else Property.NONE
         val style = map.style ?: return
         listOf(
-            "hm-protected-plan-fill", "hm-protected-plan-line",
+            "hm-protected-plan-fill", "hm-protected-plan-line",\n            "hm-specified-material-fill", "hm-specified-material-line",
             "hm-protected-conserved-fill", "hm-protected-conserved-line",
             "hm-water-supply-fill", "hm-water-supply-line",
             "hm-inuit-lands-fill", "hm-inuit-lands-line",
