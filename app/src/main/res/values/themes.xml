@@ -1,6 +1,14 @@
 <resources>
-    <style name="Theme.HuntMateGps" parent="Theme.Material3.DayNight.NoActionBar">
+    <style name="Theme.HuntMateGps" parent="Theme.Material3.Dark.NoActionBar">
         <item name="android:fontFamily">sans</item>
         <item name="android:windowLightStatusBar">false</item>
+        <item name="android:statusBarColor">#101713</item>
+        <item name="android:navigationBarColor">#101713</item>
+        <item name="android:windowBackground">#101713</item>
+        <item name="colorPrimary">#5CB982</item>
+        <item name="colorOnPrimary">#0D1B12</item>
+        <item name="colorSecondary">#A5C8AF</item>
+        <item name="colorSurface">#171F1A</item>
+        <item name="colorOnSurface">#E4F0E7</item>
     </style>
 </resources>
