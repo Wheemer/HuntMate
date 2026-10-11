@@ -15,6 +15,7 @@ import android.location.Location
 import android.os.Build
 import android.os.Bundle
 import android.content.Intent
+import android.net.Uri
 import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.EditText
@@ -88,6 +89,9 @@ class MainActivity : AppCompatActivity() {
         toolSpinner = findViewById(R.id.toolSpinner)
         setupActivitySelectors()
         findViewById<Button>(R.id.appsButton).setOnClickListener { startActivity(Intent(this, AppHubActivity::class.java)) }
+        findViewById<Button>(R.id.governmentZonesButton).setOnClickListener {
+            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://www.gov.nl.ca/fal/public-education/wildlife/hunting/boundry/")))
+        }
         findViewById<Button>(R.id.saveWaypointButton).setOnClickListener { saveWaypoint() }
         findViewById<Button>(R.id.returnButton).setOnClickListener { chooseReturnDestination() }
 
