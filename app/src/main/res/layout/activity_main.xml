@@ -101,6 +101,18 @@
             android:textColor="#59645D" />
 
         <TextView
+            android:id="@+id/navigationText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingStart="4dp"
+            android:paddingEnd="4dp"
+            android:paddingTop="3dp"
+            android:paddingBottom="6dp"
+            android:text="Save a truck, camp or waypoint for return guidance"
+            android:textColor="#3D245A"
+            android:textStyle="bold" />
+
+        <TextView
             android:id="@+id/statsText"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -137,7 +149,7 @@
                 android:layout_height="52dp"
                 android:layout_marginEnd="10dp"
                 android:minWidth="112dp"
-                android:text="Satellite"
+                android:text="Map"
                 android:textAllCaps="false"
                 android:textColor="#183A2A"
                 android:backgroundTint="#F0F4F1"
@@ -159,6 +171,46 @@
                 app:iconGravity="textStart"
                 app:iconSize="24dp"
                 app:iconTint="#246B45" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:orientation="horizontal"
+            android:gravity="center">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/saveWaypointButton"
+                android:layout_width="0dp"
+                android:layout_height="44dp"
+                android:layout_weight="1"
+                android:layout_marginEnd="5dp"
+                android:text="Save point"
+                android:textAllCaps="false"
+                android:textColor="#183A2A"
+                android:backgroundTint="#E3EDE5"
+                app:cornerRadius="22dp"
+                app:icon="@drawable/ic_layers"
+                app:iconTint="#246B45"
+                app:iconGravity="textStart"
+                app:iconSize="18dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/returnButton"
+                android:layout_width="0dp"
+                android:layout_height="44dp"
+                android:layout_weight="1"
+                android:layout_marginStart="5dp"
+                android:text="Return to…"
+                android:textAllCaps="false"
+                android:textColor="#FFFFFF"
+                android:backgroundTint="#6A3D9A"
+                app:cornerRadius="22dp"
+                app:icon="@drawable/ic_compass"
+                app:iconTint="#FFFFFF"
+                app:iconGravity="textStart"
+                app:iconSize="18dp" />
         </LinearLayout>
 
         <LinearLayout
