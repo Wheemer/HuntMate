@@ -65,7 +65,7 @@ class MapDataRepository(context: Context) {
             }
 
             try {
-                val data = fetchComplete(baseUrl)
+                val data = fetchComplete(baseUrl, allowMobileData)
                 require(valid(data, requireCaribouStatus)) {
                     if (requireCaribouStatus) "Caribou layer missing required status_ope attribute" else "Downloaded data failed validation"
                 }
@@ -86,11 +86,14 @@ class MapDataRepository(context: Context) {
         }
     }
 
-    private fun fetchComplete(baseUrl: String): String {
+    private fun fetchComplete(baseUrl: String, allowMobileData: Boolean): String {
         val all = JSONArray()
         var offset = 0
         var pages = 0
         while (true) {
+            require(isWifiConnected() || allowMobileData) {
+                "Wi-Fi disconnected during map download; remaining pages were not downloaded over mobile data."
+            }
             require(pages++ < 100) { "Pagination safety limit reached" }
             val url = baseUrl + (if (baseUrl.contains("?")) "&" else "?") + "resultOffset=" + offset + "&resultRecordCount=1000"
             val request = Request.Builder().url(url).header("User-Agent", "HuntMate-Hunting-Fishing/1.5.1").build()
