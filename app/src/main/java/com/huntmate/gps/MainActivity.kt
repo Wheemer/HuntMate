@@ -108,6 +108,8 @@ class MainActivity : AppCompatActivity() {
                 Toast.LENGTH_LONG
             ).show()
         }
+        findViewById<Button>(R.id.mapLegendButton).setOnClickListener { showMapLegend() }
+
         findViewById<Button>(R.id.saveWaypointButton).setOnClickListener { saveWaypoint() }
         findViewById<Button>(R.id.returnButton).setOnClickListener { chooseReturnDestination() }
 
@@ -307,6 +309,45 @@ class MainActivity : AppCompatActivity() {
         }.onFailure {
             android.util.Log.e("HuntMateMap", "Could not add official GeoAtlas layer $layerIndex ($id)", it)
         }
+    }
+
+    private fun showMapLegend() {
+        val legend = """
+            🔴 RED — Protected Areas Plan
+            Protected-area planning polygons. This is NOT a complete no-hunting/closed-area layer.
+
+            🟠 ORANGE — Conserved Areas
+            Canadian protected and conserved areas.
+
+            🔵 BLUE — Public Water Supplies
+            Public water-supply protection areas; check applicable access and activity rules.
+
+            🟣 PURPLE — Labrador Inuit Lands
+            Labrador Inuit land boundaries; access and hunting rights can depend on land status and agreements.
+
+            🟢 TEAL — Labrador Inuit Settlement Areas
+            Settlement-area boundaries; not a general permission-to-hunt indicator.
+
+            🟡 YELLOW — Municipal Boundaries
+            Municipal limits only; the line does not itself mean hunting is prohibited.
+
+            ⚪ WHITE — Planning Areas
+            Government planning boundaries.
+
+            🌺 PINK — Wind Energy Land Reserve
+            Wind-energy land-reserve boundaries.
+
+            IMPORTANT
+            Hunting management zones and legally closed hunting areas are separate official datasets and are not all shown by these land layers. Do not use these colours alone to decide whether hunting is legal. Check the current NL hunting regulations and official boundary descriptions.
+        """.trimIndent()
+        AlertDialog.Builder(this)
+            .setTitle("Map colours & boundary legend")
+            .setMessage(legend)
+            .setPositiveButton("Official hunting maps") { _, _ ->
+                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://www.gov.nl.ca/fal/public-education/wildlife/hunting/boundry/")))
+            }
+            .setNegativeButton("Close", null)
+            .show()
     }
 
     private fun setGovernmentLayersVisibility(visible: Boolean) {
