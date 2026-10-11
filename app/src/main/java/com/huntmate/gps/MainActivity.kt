@@ -538,25 +538,48 @@ class MainActivity : AppCompatActivity() {
             "Wind Energy Land Reserve" to "hm-wind-reserve"
         )
         val landCheckBoxes = mutableListOf<android.widget.CheckBox>()
-        content.addView(android.widget.CheckBox(this).apply {
+        var syncingLandCheckboxes = false
+        val allLandCheckBox = android.widget.CheckBox(this).apply {
             text = "All land boundaries on/off"
             isChecked = landEntries.all { landLayerVisibility[it.second] ?: true }
             setOnCheckedChangeListener { _, checked ->
-                landEntries.forEach { (_, key) ->
-                    landLayerVisibility[key] = checked
-                    setLayerGroupVisibility(key, checked)
+                if (syncingLandCheckboxes) return@setOnCheckedChangeListener
+                syncingLandCheckboxes = true
+                try {
+                    landEntries.forEach { (_, key) ->
+                        landLayerVisibility[key] = checked
+                        setLayerGroupVisibility(key, checked)
+                    }
+                    landCheckBoxes.forEach { box -> if (box.isChecked != checked) box.isChecked = checked }
+                    saveLayerVisibility()
+                } finally {
+                    syncingLandCheckboxes = false
                 }
-                saveLayerVisibility()
-                landCheckBoxes.forEach { box -> if (box.isChecked != checked) box.isChecked = checked }
             }
-        })
+        }
+        content.addView(allLandCheckBox)
         landEntries.forEach { (label, key) ->
             content.addView(android.widget.CheckBox(this).apply {
                 text = label + layerRowSuffix(key); isChecked = landLayerVisibility[key] ?: true
                 setOnCheckedChangeListener { _, checked ->
                     landLayerVisibility[key] = checked
-                    saveLayerVisibility()
                     setLayerGroupVisibility(key, checked)
+                    if (!syncingLandCheckboxes) {
+                        syncingLandCheckboxes = true
+                        try {
+                            val allEnabled = landEntries.all { landLayerVisibility[it.second] ?: true }
+                            val allDisabled = landEntries.none { landLayerVisibility[it.second] ?: true }
+                            // A standard checkbox cannot display a mixed/indeterminate state.
+                            // Keep it checked only when every land layer is enabled.
+                            val masterChecked = allEnabled && !allDisabled
+                            if (allLandCheckBox.isChecked != masterChecked) {
+                                allLandCheckBox.isChecked = masterChecked
+                            }
+                            saveLayerVisibility()
+                        } finally {
+                            syncingLandCheckboxes = false
+                        }
+                    }
                 }
                 landCheckBoxes.add(this)
             })
