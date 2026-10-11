@@ -60,6 +60,11 @@ class MainActivity : AppCompatActivity() {
     private lateinit var mapDataRepository: MapDataRepository
     private val mapLayerErrors = mutableMapOf<String, String>()
     private val mapLayerFetchedAt = mutableMapOf<String, Long>()
+    private val mapLayerLoading = mutableSetOf<String>()
+    private val mapLayerCompleted = mutableSetOf<String>()
+    private val expectedMapLayerCount = 12
+    private var manualRefreshRequested = false
+    private var allowMobileDataForRefresh = false
     private lateinit var activitySpinner: Spinner
     private lateinit var toolSpinner: Spinner
     private var mapReady = false
@@ -222,6 +227,10 @@ class MainActivity : AppCompatActivity() {
     private fun setupLayers() {
         mapReady = true
         val style = map.style ?: return
+        mapLayerLoading.clear()
+        mapLayerCompleted.clear()
+        mapLayerErrors.clear()
+        updateMapDataStatus()
         // Use actual ArcGIS GeoJSON queries, not an export image masquerading as an XYZ tile source.
         // The old RasterSource used a bbox export URL that MapLibre could not request as a tile pyramid.
         // Protected-area polygons are NOT a complete hunting-closure dataset; hunting rules have exceptions.
@@ -237,6 +246,8 @@ class MainActivity : AppCompatActivity() {
         addGovernmentGeoJsonLayer(style, "hm-municipal-boundaries", 6, null, 0f, "#FDD835", 1.6f)
         addGovernmentGeoJsonLayer(style, "hm-planning-areas", 7, null, 0f, "#FFFFFF", 1.1f)
         addGovernmentGeoJsonLayer(style, "hm-wind-reserve", 8, "#C2185B", 0.10f, "#EC407A", 2.0f)
+        manualRefreshRequested = false
+        allowMobileDataForRefresh = false
         style.addSource(GeoJsonSource("huntmate-track-source", FeatureCollection.fromFeatures(arrayOf())))
         style.addSource(GeoJsonSource("huntmate-location-source", FeatureCollection.fromFeatures(arrayOf())))
         style.addSource(GeoJsonSource("huntmate-accuracy-source", FeatureCollection.fromFeatures(arrayOf())))
@@ -288,20 +299,14 @@ class MainActivity : AppCompatActivity() {
         lineWidth: Float
     ) {
         val sourceId = "$id-source"
+        val simplify = if (layerIndex == 2 || layerIndex == 3) "&maxAllowableOffset=0.0001" else ""
         val url = "https://dnrmaps.gov.nl.ca/arcgis/rest/services/GeoAtlas/Land_Use/MapServer/$layerIndex/query" +
-            "?where=1%3D1&outFields=*&returnGeometry=true&outSR=4326&f=geoJSON"
+            "?where=1%3D1&outFields=*&returnGeometry=true&outSR=4326&f=geoJSON" + simplify
+        beginLayerLoad(id)
         runCatching {
             style.addSource(GeoJsonSource(sourceId, FeatureCollection.fromFeatures(arrayOf())))
-            mapDataRepository.load(id, url) { result ->
-                runOnUiThread {
-                    val source = map.style?.getSourceAs<GeoJsonSource>(sourceId)
-                    if (source != null && result.geoJson != null) {
-                        runCatching { source.setGeoJson(FeatureCollection.fromJson(result.geoJson)) }
-                            .onSuccess { mapLayerErrors.remove(id); mapLayerFetchedAt[id] = result.fetchedAt }
-                            .onFailure { mapLayerErrors[id] = "Invalid map data" }
-                    } else if (result.error != null) mapLayerErrors[id] = result.error
-                    updateMapDataStatus()
-                }
+            mapDataRepository.load(id, url, forceRefresh = manualRefreshRequested, allowMobileData = allowMobileDataForRefresh) { result ->
+                runOnUiThread { handleLayerResult(id, style, sourceId, result) }
             }
             if (fill != null) {
                 style.addLayer(
@@ -318,36 +323,63 @@ class MainActivity : AppCompatActivity() {
                     PropertyFactory.lineColor(outline),
                     PropertyFactory.lineWidth(lineWidth),
                     PropertyFactory.lineOpacity(0.95f),
-                    PropertyFactory.visibility(if (landRestrictionsEnabled) Property.VISIBLE else Property.NONE)
+                    PropertyFactory.visibility(if (landRestrictionsEnabled && landLayerVisibility[id] != false) Property.VISIBLE else Property.NONE)
                 )
             )
         }.onFailure {
+            mapLayerErrors[id] = "Layer could not be initialized"
+            mapLayerLoading.remove(id)
+            mapLayerCompleted.add(id)
+            updateMapDataStatus()
             android.util.Log.e("HuntMateMap", "Could not add official GeoAtlas layer $layerIndex ($id)", it)
         }
     }
 
+    private fun beginLayerLoad(id: String) {
+        mapLayerLoading.add(id)
+        mapLayerCompleted.remove(id)
+        updateMapDataStatus()
+    }
+
+    private fun handleLayerResult(id: String, style: Style, sourceId: String, result: MapDataRepository.Result) {
+        if (map.style !== style) return
+        val source = style.getSourceAs<GeoJsonSource>(sourceId)
+        if (source != null && result.geoJson != null) {
+            runCatching { source.setGeoJson(FeatureCollection.fromJson(result.geoJson)) }
+                .onSuccess {
+                    mapLayerFetchedAt[id] = result.fetchedAt
+                    if (result.error != null) mapLayerErrors[id] = result.error
+                    else mapLayerErrors.remove(id)
+                }
+                .onFailure { mapLayerErrors[id] = "Invalid map data: ${it.message ?: "parse/render failure"}" }
+        } else {
+            mapLayerErrors[id] = result.error ?: "Layer source unavailable"
+        }
+        mapLayerLoading.remove(id)
+        mapLayerCompleted.add(id)
+        updateMapDataStatus()
+    }
+
     private fun updateMapDataStatus() {
         val status = findViewById<TextView>(R.id.mapDataStatus) ?: return
-        status.text = if (mapLayerErrors.isEmpty()) "Official map layers loaded" else
-            "MAP DATA WARNING: ${mapLayerErrors.size} layer(s) unavailable/stale. Open Layers for details."
+        status.text = when {
+            mapLayerLoading.isNotEmpty() || mapLayerCompleted.size < expectedMapLayerCount ->
+                "Loading official map layers (${mapLayerCompleted.size}/$expectedMapLayerCount)…"
+            mapLayerErrors.isNotEmpty() ->
+                "MAP DATA WARNING: ${mapLayerErrors.size} layer(s) unavailable or may be stale. Open Layers for details."
+            else -> "Official map layers loaded"
+        }
         status.visibility = android.view.View.VISIBLE
     }
 
     private fun addHuntingZoneLayer(style: Style, id: String, layerIndex: Int, fill: String, outline: String, caribouStatus: Boolean = false) {
         val sourceId = "$id-source"
-        val url = "https://services8.arcgis.com/aCyQID5qQcyrJMm2/arcgis/rest/services/WLD_BigGameManagementArea/FeatureServer/$layerIndex/query?where=1%3D1&outFields=*&returnGeometry=true&outSR=4326&f=geojson"
+        val url = "https://services8.arcgis.com/aCyQID5qQcyrJMm2/arcgis/rest/services/WLD_BigGameManagementArea/FeatureServer/$layerIndex/query?where=1%3D1&outFields=*&returnGeometry=true&outSR=4326&f=geojson&maxAllowableOffset=0.0001"
+        beginLayerLoad(id)
         runCatching {
             style.addSource(GeoJsonSource(sourceId, FeatureCollection.fromFeatures(arrayOf())))
-            mapDataRepository.load(id, url) { result ->
-                runOnUiThread {
-                    val source = map.style?.getSourceAs<GeoJsonSource>(sourceId)
-                    if (source != null && result.geoJson != null) {
-                        runCatching { source.setGeoJson(FeatureCollection.fromJson(result.geoJson)) }
-                            .onSuccess { mapLayerErrors.remove(id); mapLayerFetchedAt[id] = result.fetchedAt }
-                            .onFailure { mapLayerErrors[id] = "Invalid map data" }
-                    } else if (result.error != null) mapLayerErrors[id] = result.error
-                    updateMapDataStatus()
-                }
+            mapDataRepository.load(id, url, forceRefresh = manualRefreshRequested, allowMobileData = allowMobileDataForRefresh) { result ->
+                runOnUiThread { handleLayerResult(id, style, sourceId, result) }
             }
             val visibility = if (huntingLayerVisibility[id] != false) Property.VISIBLE else Property.NONE
             val fillColor: Any = if (caribouStatus) {
@@ -361,7 +393,16 @@ class MainActivity : AppCompatActivity() {
                         org.maplibre.android.style.expressions.Expression.literal("CLOSED")
                     ),
                     org.maplibre.android.style.expressions.Expression.literal("#D32F2F"),
-                    org.maplibre.android.style.expressions.Expression.literal(fill)
+                    org.maplibre.android.style.expressions.Expression.eq(
+                        org.maplibre.android.style.expressions.Expression.upcase(
+                            org.maplibre.android.style.expressions.Expression.toString(
+                                org.maplibre.android.style.expressions.Expression.get("status_ope")
+                            )
+                        ),
+                        org.maplibre.android.style.expressions.Expression.literal("OPEN")
+                    ),
+                    org.maplibre.android.style.expressions.Expression.literal(fill),
+                    org.maplibre.android.style.expressions.Expression.literal("#9E9E9E")
                 )
             } else fill
             style.addLayer(org.maplibre.android.style.layers.FillLayer("$id-fill", sourceId).withProperties(
@@ -374,6 +415,8 @@ class MainActivity : AppCompatActivity() {
             ))
         }.onFailure {
             mapLayerErrors[id] = "Layer could not be initialized"
+            mapLayerLoading.remove(id)
+            mapLayerCompleted.add(id)
             updateMapDataStatus()
             android.util.Log.e("HuntMateMap", "Could not initialize WLD layer " + id, it)
         }
@@ -443,6 +486,22 @@ class MainActivity : AppCompatActivity() {
                 }
             })
         }
+        heading("DATA UPDATES")
+        content.addView(Button(this).apply {
+            text = "Refresh official map data"
+            setOnClickListener {
+                if (mapDataRepository.isWifiConnected()) {
+                    refreshMapData(allowMobileData = false)
+                } else {
+                    AlertDialog.Builder(this@MainActivity)
+                        .setTitle("Use mobile data?")
+                        .setMessage("Refreshing can download large government boundary datasets. Use Wi-Fi when possible. Allow this one refresh over mobile data?")
+                        .setPositiveButton("Allow once and refresh") { _, _ -> refreshMapData(allowMobileData = true) }
+                        .setNegativeButton("Cancel", null)
+                        .show()
+                }
+            }
+        })
         heading("INFORMATION")
         content.addView(Button(this).apply {
             text = "Map legend and colours"; setOnClickListener { showMapLegend() }
@@ -451,6 +510,13 @@ class MainActivity : AppCompatActivity() {
             text = "Data sources, legal notes and update status"; setOnClickListener { showDataSources() }
         })
         AlertDialog.Builder(this).setTitle("Layers").setView(scroll).setPositiveButton("Done", null).show()
+    }
+
+    private fun refreshMapData(allowMobileData: Boolean) {
+        manualRefreshRequested = true
+        allowMobileDataForRefresh = allowMobileData
+        applyMapStyle()
+        Toast.makeText(this, "Refreshing official map data…", Toast.LENGTH_SHORT).show()
     }
 
     private fun setLayerGroupVisibility(key: String, visible: Boolean) {
@@ -531,7 +597,8 @@ class MainActivity : AppCompatActivity() {
         val visibility = if (visible) Property.VISIBLE else Property.NONE
         val style = map.style ?: return
         listOf(
-            "hm-protected-plan-fill", "hm-protected-plan-line",\n            "hm-specified-material-fill", "hm-specified-material-line",
+            "hm-protected-plan-fill", "hm-protected-plan-line",
+            "hm-specified-material-fill", "hm-specified-material-line",
             "hm-protected-conserved-fill", "hm-protected-conserved-line",
             "hm-water-supply-fill", "hm-water-supply-line",
             "hm-inuit-lands-fill", "hm-inuit-lands-line",
