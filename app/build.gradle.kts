@@ -6,6 +6,7 @@ plugins {
 android {
     namespace = "com.huntmate.gps"
     compileSdk = 35
+    buildToolsVersion = "34.0.0"
 
     buildFeatures { buildConfig = true }
 
