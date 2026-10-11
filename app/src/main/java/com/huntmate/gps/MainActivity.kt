@@ -1,4 +1,4 @@
-successfully downloaded text file (SHA: d56dda71397acc791f49de4dc253e08cca25e6fd)package com.huntmate.gps
+package com.huntmate.gps
 
 import android.Manifest
 import android.content.pm.PackageManager
