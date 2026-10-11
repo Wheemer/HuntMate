@@ -108,7 +108,13 @@ class MainActivity : AppCompatActivity() {
                 Toast.LENGTH_LONG
             ).show()
         }
-        findViewById<Button>(R.id.mapLegendButton).setOnClickListener { showMapLegend() }
+        // Resolve by resource name so the build does not depend on a stale generated R.id entry.
+        val mapLegendId = resources.getIdentifier("mapLegendButton", "id", packageName)
+        if (mapLegendId != 0) {
+            findViewById<Button>(mapLegendId).setOnClickListener { showMapLegend() }
+        } else {
+            android.util.Log.e("HuntMate", "Map legend button ID is missing from activity_main")
+        }
 
         findViewById<Button>(R.id.saveWaypointButton).setOnClickListener { saveWaypoint() }
         findViewById<Button>(R.id.returnButton).setOnClickListener { chooseReturnDestination() }
