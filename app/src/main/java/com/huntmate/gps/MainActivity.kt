@@ -21,6 +21,7 @@ import android.content.ActivityNotFoundException
 import android.net.Uri
 import android.widget.Button
 import android.widget.EditText
+import android.widget.ImageButton
 import androidx.appcompat.app.AlertDialog
 import android.widget.TextView
 import android.widget.Toast
@@ -104,10 +105,10 @@ class MainActivity : AppCompatActivity() {
         rotationSensor = sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)
         activityButton = findViewById(R.id.activityButton)
         setupActivityChooser()
-        findViewById<Button>(R.id.toolsButton).setOnClickListener { showToolsMenu() }
+        findViewById<ImageButton>(R.id.toolsButton).setOnClickListener { showToolsMenu() }
         findViewById<Button>(R.id.trackingPanelToggle).setOnClickListener { toggleTrackingDetails() }
         findViewById<Button>(R.id.appsButton).setOnClickListener { startActivity(Intent(this, AppHubActivity::class.java)) }
-        findViewById<Button>(R.id.officialLayersButton).setOnClickListener { showOfficialLayers() }
+        findViewById<ImageButton>(R.id.officialLayersButton).setOnClickListener { showOfficialLayers() }
 
         if (Build.VERSION.SDK_INT >= 33 && ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
             notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
@@ -127,8 +128,8 @@ class MainActivity : AppCompatActivity() {
         findViewById<Button>(R.id.pauseButton).setOnClickListener { controller.pause() }
         findViewById<Button>(R.id.stopButton).setOnClickListener { controller.stop() }
         updateMapTypeButton()
-        findViewById<Button>(R.id.recenterButton).setOnClickListener { locateMe() }
-        findViewById<Button>(R.id.mapTypeButton).setOnClickListener {
+        findViewById<ImageButton>(R.id.recenterButton).setOnClickListener { locateMe() }
+        findViewById<ImageButton>(R.id.mapTypeButton).setOnClickListener {
             mapMode = (mapMode + 1) % 4
             updateMapTypeButton()
             applyMapStyle()
@@ -185,7 +186,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updateMapTypeButton() {
-        findViewById<Button>(R.id.mapTypeButton).text = currentMapModeName()
+        findViewById<ImageButton>(R.id.mapTypeButton).contentDescription = "Map style: ${currentMapModeName()}"
     }
 
     private fun configureMapNetworking() {
