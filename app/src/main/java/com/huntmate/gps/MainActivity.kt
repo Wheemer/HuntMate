@@ -51,7 +51,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var activitySpinner: Spinner
     private lateinit var toolSpinner: Spinner
     private var mapReady = false
-    private var followLocation = true
+    // Keep the initial map stable until the user explicitly recenters on GPS.
+    private var followLocation = false
     private var mapMode = 0 // 0 = OpenStreetMap, 1 = satellite, 2 = topographic, 3 = hybrid satellite
     private lateinit var sensorManager: SensorManager
     private var rotationSensor: Sensor? = null
@@ -86,6 +87,12 @@ class MainActivity : AppCompatActivity() {
         mapView.onCreate(savedInstanceState)
         mapView.getMapAsync { m ->
             map = m
+            // Start over Newfoundland and Labrador so the map is useful before GPS permission,
+            // a location fix, or any optional map data is available.
+            map.cameraPosition = org.maplibre.android.camera.CameraPosition.Builder()
+                .target(LatLng(49.3, -56.0))
+                .zoom(5.2)
+                .build()
             map.addOnCameraMoveStartedListener { reason ->
                 if (reason == MapLibreMap.OnCameraMoveStartedListener.REASON_API_GESTURE) followLocation = false
             }
@@ -96,8 +103,14 @@ class MainActivity : AppCompatActivity() {
         findViewById<Button>(R.id.pauseButton).setOnClickListener { controller.pause() }
         findViewById<Button>(R.id.stopButton).setOnClickListener { controller.stop() }
         findViewById<Button>(R.id.recenterButton).setOnClickListener {
-            followLocation = true
-            controller.snapshot.value.point?.let { map.animateCamera(CameraUpdateFactory.newLatLngZoom(LatLng(it.latitude, it.longitude), 15.5)) }
+            val point = controller.snapshot.value.point
+            if (point != null) {
+                followLocation = true
+                map.animateCamera(CameraUpdateFactory.newLatLngZoom(LatLng(point.latitude, point.longitude), 15.5))
+            } else {
+                ensurePermissionAndStart()
+                Toast.makeText(this, "Getting your location…", Toast.LENGTH_SHORT).show()
+            }
         }
         findViewById<Button>(R.id.mapTypeButton).setOnClickListener {
             mapMode = (mapMode + 1) % 4
