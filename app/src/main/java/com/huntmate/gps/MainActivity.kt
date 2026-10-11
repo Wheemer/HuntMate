@@ -62,6 +62,7 @@ class MainActivity : AppCompatActivity() {
     private val mapLayerFetchedAt = mutableMapOf<String, Long>()
     private val mapLayerLoading = mutableSetOf<String>()
     private val mapLayerCompleted = mutableSetOf<String>()
+    private val mapLayerInitializationErrors = mutableSetOf<String>()
     private val expectedMapLayerCount = 12
     private var manualRefreshRequested = false
     private var allowMobileDataForRefresh = false
@@ -229,6 +230,7 @@ class MainActivity : AppCompatActivity() {
         val style = map.style ?: return
         mapLayerLoading.clear()
         mapLayerCompleted.clear()
+        mapLayerInitializationErrors.clear()
         mapLayerErrors.clear()
         updateMapDataStatus()
         // Use actual ArcGIS GeoJSON queries, not an export image masquerading as an XYZ tile source.
@@ -327,6 +329,7 @@ class MainActivity : AppCompatActivity() {
                 )
             )
         }.onFailure {
+            mapLayerInitializationErrors.add(id)
             mapLayerErrors[id] = "Layer could not be initialized"
             mapLayerLoading.remove(id)
             mapLayerCompleted.add(id)
@@ -349,7 +352,7 @@ class MainActivity : AppCompatActivity() {
                 .onSuccess {
                     mapLayerFetchedAt[id] = result.fetchedAt
                     if (result.error != null) mapLayerErrors[id] = result.error
-                    else mapLayerErrors.remove(id)
+                    else if (id !in mapLayerInitializationErrors) mapLayerErrors.remove(id)
                 }
                 .onFailure { mapLayerErrors[id] = "Invalid map data: ${it.message ?: "parse/render failure"}" }
         } else {
@@ -382,7 +385,7 @@ class MainActivity : AppCompatActivity() {
                 runOnUiThread { handleLayerResult(id, style, sourceId, result) }
             }
             val visibility = if (huntingLayerVisibility[id] != false) Property.VISIBLE else Property.NONE
-            val fillColor: Any = if (caribouStatus) {
+            val fillColor = if (caribouStatus) {
                 org.maplibre.android.style.expressions.Expression.switchCase(
                     org.maplibre.android.style.expressions.Expression.eq(
                         org.maplibre.android.style.expressions.Expression.upcase(
@@ -404,7 +407,7 @@ class MainActivity : AppCompatActivity() {
                     org.maplibre.android.style.expressions.Expression.literal(fill),
                     org.maplibre.android.style.expressions.Expression.literal("#9E9E9E")
                 )
-            } else fill
+            } else org.maplibre.android.style.expressions.Expression.literal(fill)
             style.addLayer(org.maplibre.android.style.layers.FillLayer("$id-fill", sourceId).withProperties(
                 PropertyFactory.fillColor(fillColor), PropertyFactory.fillOpacity(0.26f),
                 PropertyFactory.fillOutlineColor(outline), PropertyFactory.visibility(visibility)
@@ -414,6 +417,7 @@ class MainActivity : AppCompatActivity() {
                 PropertyFactory.visibility(visibility)
             ))
         }.onFailure {
+            mapLayerInitializationErrors.add(id)
             mapLayerErrors[id] = "Layer could not be initialized"
             mapLayerLoading.remove(id)
             mapLayerCompleted.add(id)
