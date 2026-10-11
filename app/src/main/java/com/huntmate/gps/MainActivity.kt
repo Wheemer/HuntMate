@@ -286,7 +286,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun officialLayers(): List<OfficialLayer> = listOf(
         OfficialLayer("nl-protected-areas", "Protected Areas Plan", "https://dnrmaps.gov.nl.ca/arcgis/rest/services/GeoAtlas/Land_Use/MapServer/0/query?where=1%3D1&outFields=*&returnGeometry=true&outSR=4326&f=geoJSON", "#795548", "#5D4037"),
-        OfficialLayer("nl-closed-areas", "Closed areas (official 2022-23 map)", "https://services8.arcgis.com/aCyQID5qQcyrJMm2/arcgis/rest/services/Closed_Areas/FeatureServer/32/query?where=1%3D1&outFields=*&returnGeometry=true&outSR=4326&f=geoJSON&maxAllowableOffset=0.0001", "#C62828", "#8E0000"),
+        OfficialLayer("nl-closed-areas", "Closed-area geometry (2022-23 archive)", "https://services8.arcgis.com/aCyQID5qQcyrJMm2/arcgis/rest/services/Closed_Areas/FeatureServer/32/query?where=1%3D1&outFields=*&returnGeometry=true&outSR=4326&f=geoJSON&maxAllowableOffset=0.0001", "#C62828", "#8E0000"),
         OfficialLayer("nl-moose-zones", "Moose management areas", "https://services8.arcgis.com/aCyQID5qQcyrJMm2/arcgis/rest/services/WLD_BigGameManagementArea/FeatureServer/0/query?where=1%3D1&outFields=*&returnGeometry=true&outSR=4326&f=geoJSON&maxAllowableOffset=0.0001", "#D6A900", "#8D6E00"),
         OfficialLayer("nl-caribou-zones", "Caribou management areas", "https://services8.arcgis.com/aCyQID5qQcyrJMm2/arcgis/rest/services/WLD_BigGameManagementArea/FeatureServer/1/query?where=1%3D1&outFields=*&returnGeometry=true&outSR=4326&f=geoJSON&maxAllowableOffset=0.0001", "#2E7D32", "#1B5E20"),
         OfficialLayer("nl-bear-zones", "Black bear management areas", "https://services8.arcgis.com/aCyQID5qQcyrJMm2/arcgis/rest/services/WLD_BigGameManagementArea/FeatureServer/2/query?where=1%3D1&outFields=*&returnGeometry=true&outSR=4326&f=geoJSON&maxAllowableOffset=0.0001", "#6A1B9A", "#4A148C")
@@ -304,9 +304,9 @@ class MainActivity : AppCompatActivity() {
         AlertDialog.Builder(this).setTitle("Official data sources").setMessage(
             "GeoAtlas land-use layer: Government of Newfoundland and Labrador.\n\n" +
             "Management-area layers: NL Wildlife Division, Department of Forestry, Agriculture and Lands.\n\n" +
-            "Closed-area geometry: Government of Newfoundland and Labrador. The service metadata says it was last aligned with the 2022-23 guide; always check the current guide.\n\n" +
+            "Closed-area geometry: Government of Newfoundland and Labrador archived 2022-23 service. Current prohibitions and map index: Government of Newfoundland and Labrador 2025-26 Closed Areas guide; always check that guide before hunting.\n\n" +
             "These are reference layers, not legal determinations. Seasons, licences, emergency closures, access permissions and municipal restrictions can change. Check the current NL Hunting and Trapping Guide before hunting.\n\n" +
-            "GeoAtlas:\nhttps://dnrmaps.gov.nl.ca/arcgis/rest/services/GeoAtlas/Land_Use/MapServer\n\nHunting guide:\nhttps://www.gov.nl.ca/hunting-trapping-guide/"
+            "GeoAtlas:\nhttps://dnrmaps.gov.nl.ca/arcgis/rest/services/GeoAtlas/Land_Use/MapServer\n\nHunting guide:\nhttps://www.gov.nl.ca/hunting-trapping-guide/\n\nClosed Areas (2025-26):\nhttps://www.gov.nl.ca/hunting-trapping-guide/2025-26/closed-areas/"
         ).setNeutralButton("Small-game guide") { _, _ -> chooseOfficialSmallGameGuide() }.setPositiveButton("Close", null).show()
     }
     private fun chooseOfficialSmallGameGuide() {
@@ -314,7 +314,7 @@ class MainActivity : AppCompatActivity() {
         val urls = arrayOf(
             "https://www.gov.nl.ca/hunting-trapping-guide/2026-27/hunting-seasons-and-zones/island/small-game/",
             "https://www.gov.nl.ca/hunting-trapping-guide/2026-27/hunting-seasons-and-zones/labrador/small-game/",
-            "https://www.gov.nl.ca/hunting-trapping-guide/2026-27/closed-areas/"
+            "https://www.gov.nl.ca/hunting-trapping-guide/2025-26/closed-areas/"
         )
         AlertDialog.Builder(this).setTitle("Official NL small-game rules")
             .setItems(names) { _, index -> openOfficialPage(urls[index]) }
