@@ -1,6 +1,8 @@
 package com.huntmate.gps
 
 import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.util.Log
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -16,24 +18,70 @@ class MapDataRepository(context: Context) {
     private val executor = Executors.newFixedThreadPool(3)
     private val client = OkHttpClient.Builder().connectTimeout(15, TimeUnit.SECONDS).readTimeout(45, TimeUnit.SECONDS).callTimeout(90, TimeUnit.SECONDS).build()
 
-    fun load(key: String, baseUrl: String, callback: (Result) -> Unit) {
+    companion object {
+        private const val CACHE_MAX_AGE_MS = 7L * 24L * 60L * 60L * 1000L
+    }
+
+    fun isWifiConnected(): Boolean {
+        val connectivity = app.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val network = connectivity.activeNetwork ?: return false
+        val capabilities = connectivity.getNetworkCapabilities(network) ?: return false
+        return capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
+    }
+
+    /**
+     * A basemap/style rebuild uses fresh validated cache only. Missing/stale data is
+     * fetched on Wi-Fi; mobile-data downloads require explicit caller consent.
+     */
+    fun load(
+        key: String,
+        baseUrl: String,
+        forceRefresh: Boolean = false,
+        allowMobileData: Boolean = false,
+        callback: (Result) -> Unit
+    ) {
         executor.execute {
             val file = File(app.filesDir, "mapdata_" + key.replace(Regex("[^A-Za-z0-9_-]"), "_") + ".geojson")
-            val cached = runCatching { file.takeIf { it.isFile }?.readText()?.takeIf(::valid) }.getOrNull()
-            if (cached != null) callback(Result(cached, null, true, file.lastModified()))
+            val requireCaribouStatus = key == "hm-caribou-zones"
+            val cached = runCatching {
+                file.takeIf { it.isFile }?.readText()?.takeIf { valid(it, requireCaribouStatus) }
+            }.getOrNull()
+            val cachedAt = if (cached != null) file.lastModified() else 0L
+            val cacheFresh = cached != null && System.currentTimeMillis() - cachedAt < CACHE_MAX_AGE_MS
+
+            if (cached != null && cacheFresh && !forceRefresh) {
+                callback(Result(cached, null, true, cachedAt))
+                return@execute
+            }
+
+            if (!isWifiConnected() && !allowMobileData) {
+                val reason = if (cached != null) {
+                    "Refresh skipped: cached map data may be stale. Connect to Wi-Fi or explicitly allow mobile-data downloads."
+                } else {
+                    "Map data not cached. Connect to Wi-Fi or explicitly allow mobile-data downloads."
+                }
+                callback(Result(cached, reason, cached != null, cachedAt))
+                return@execute
+            }
+
             try {
                 val data = fetchComplete(baseUrl)
-                require(valid(data)) { "Downloaded data failed validation" }
+                require(valid(data, requireCaribouStatus)) {
+                    if (requireCaribouStatus) "Caribou layer missing required status_ope attribute" else "Downloaded data failed validation"
+                }
                 val temp = File(file.parentFile, file.name + ".tmp")
                 temp.writeText(data)
-                require(valid(temp.readText())) { "Temporary cache failed validation" }
+                require(valid(temp.readText(), requireCaribouStatus)) { "Temporary cache failed validation" }
                 if (file.exists() && !file.delete()) error("Could not replace cache")
                 if (!temp.renameTo(file)) { temp.copyTo(file, overwrite = true); temp.delete() }
                 callback(Result(data, null, false, file.lastModified()))
             } catch (e: Exception) {
                 Log.w("HuntMateMapData", "Refresh failed for " + key, e)
-                if (cached == null) callback(Result(null, "Could not load official layer: " + (e.message ?: "network/data error"), false, 0L))
-                else callback(Result(cached, "Refresh failed; cached data may be stale. Verify official rules.", true, file.lastModified()))
+                if (cached == null) {
+                    callback(Result(null, "Could not load official layer: " + (e.message ?: "network/data error"), false, 0L))
+                } else {
+                    callback(Result(cached, "Refresh failed; cached data may be stale. Verify official rules.", true, cachedAt))
+                }
             }
         }
     }
@@ -66,7 +114,7 @@ class MapDataRepository(context: Context) {
         return JSONObject().put("type", "FeatureCollection").put("features", all).toString()
     }
 
-    private fun valid(text: String): Boolean = runCatching {
+    private fun valid(text: String, requireCaribouStatus: Boolean = false): Boolean = runCatching {
         val root = JSONObject(text)
         if (root.optString("type") != "FeatureCollection") return@runCatching false
         val features = root.optJSONArray("features") ?: return@runCatching false
@@ -74,6 +122,11 @@ class MapDataRepository(context: Context) {
         for (i in 0 until features.length()) {
             val feature = features.optJSONObject(i) ?: return@runCatching false
             if (feature.optJSONObject("geometry") == null) return@runCatching false
+            if (requireCaribouStatus) {
+                val properties = feature.optJSONObject("properties") ?: return@runCatching false
+                if (!properties.has("status_ope") || properties.isNull("status_ope") ||
+                    properties.optString("status_ope").isBlank()) return@runCatching false
+            }
         }
         true
     }.getOrDefault(false)
