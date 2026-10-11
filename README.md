@@ -34,6 +34,17 @@ Android's official command-line workflow uses the Gradle wrapper (`./gradlew ass
 
 A release build must be signed with the developer's own release key before distribution.
 
+## Persistent install signing
+
+Android will refuse to update an installed app when the next APK has a different signing certificate, often showing only “App not installed.” The Android workflow supports a persistent private signing key through these repository secrets:
+
+- `HUNTMATE_KEYSTORE_BASE64`: the base64-encoded `.jks` file
+- `HUNTMATE_KEYSTORE_PASSWORD`
+- `HUNTMATE_KEY_ALIAS`
+- `HUNTMATE_KEY_PASSWORD`
+
+When all four are set, the workflow signs both debug and release APKs with that key. Keep the keystore private and back it up outside the repository. Without these secrets, local development and pull-request builds continue to use the normal ephemeral debug signer and must not be used to update an installed HuntMate app.
+
 ## Integration API
 
 `HuntMateGpsController` is the public integration surface. It exposes activity selection, start/pause/stop controls, and a `StateFlow<TrackingSnapshot>` without requiring the host HuntMate application to use this UI.

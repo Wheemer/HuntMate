@@ -8,6 +8,11 @@ name: Android build
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      HUNTMATE_KEYSTORE_FILE: ${{ runner.temp }}/huntmate-signing.jks
+      HUNTMATE_KEYSTORE_PASSWORD: ${{ secrets.HUNTMATE_KEYSTORE_PASSWORD }}
+      HUNTMATE_KEY_ALIAS: ${{ secrets.HUNTMATE_KEY_ALIAS }}
+      HUNTMATE_KEY_PASSWORD: ${{ secrets.HUNTMATE_KEY_PASSWORD }}
     steps:
       - name: Checkout HuntMate
         uses: actions/checkout@v4
@@ -29,6 +34,14 @@ jobs:
 
       - name: Install Android SDK packages
         run: sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Restore persistent APK signing key
+        if: ${{ env.HUNTMATE_KEYSTORE_PASSWORD != '' && env.HUNTMATE_KEY_ALIAS != '' && env.HUNTMATE_KEY_PASSWORD != '' }}
+        env:
+          HUNTMATE_KEYSTORE_BASE64: ${{ secrets.HUNTMATE_KEYSTORE_BASE64 }}
+        run: |
+          test -n "$HUNTMATE_KEYSTORE_BASE64"
+          printf '%s' "$HUNTMATE_KEYSTORE_BASE64" | base64 --decode > "$HUNTMATE_KEYSTORE_FILE"
 
       - name: Run unit tests
         run: gradle --stacktrace test
